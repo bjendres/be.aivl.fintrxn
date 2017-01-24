@@ -1,6 +1,33 @@
 <?php
+/*-------------------------------------------------------+
+| Custom Financial Transaction Generator                 |
+| Copyright (C) 2017 AIVL                                |
+| Author: B. Endres (endres@systopia.de)                 |
+|         E. Hommel (erik.hommel@civicoop.org)           |
++--------------------------------------------------------+
+| License: AGPLv3, see LICENSE file                      |
++--------------------------------------------------------*/
 
 require_once 'fintrxn.civix.php';
+
+
+/**
+ * inform the generator of an upcoming change
+ */
+function fintrxn_civicrm_pre($op, $objectName, $id, &$params) {
+  if ($objectName == 'Contribution') {
+    CRM_Fintrxn_Generator::create($op, $params, $id);
+  }
+}
+
+/**
+ * inform the generator of an performed change
+ */
+function fintrxn_civicrm_post($op, $objectName, $objectId, &$objectRef) {
+  if ($objectName == 'Contribution') {
+    CRM_Fintrxn_Generator::generate($op, $objectId, $objectRef);
+  }
+}
 
 /**
  * Implements hook_civicrm_config().
@@ -124,32 +151,3 @@ function fintrxn_civicrm_alterSettingsFolders(&$metaDataFolders = NULL) {
   _fintrxn_civix_civicrm_alterSettingsFolders($metaDataFolders);
 }
 
-/**
- * Functions below this ship commented out. Uncomment as required.
- *
-
-/**
- * Implements hook_civicrm_preProcess().
- *
- * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_preProcess
- *
-function fintrxn_civicrm_preProcess($formName, &$form) {
-
-} // */
-
-/**
- * Implements hook_civicrm_navigationMenu().
- *
- * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_navigationMenu
- *
-function fintrxn_civicrm_navigationMenu(&$menu) {
-  _fintrxn_civix_insert_navigation_menu($menu, NULL, array(
-    'label' => ts('The Page', array('domain' => 'be.aivl.fintrxn')),
-    'name' => 'the_page',
-    'url' => 'civicrm/the-page',
-    'permission' => 'access CiviReport,access CiviContribute',
-    'operator' => 'OR',
-    'separator' => 0,
-  ));
-  _fintrxn_civix_navigationMenu($menu);
-} // */
