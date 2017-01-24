@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<extension key="be.aivl.fintrxn" type="module">
+  <file>fintrxn</file>
+  <name>AIVL Financial Transactions</name>
+  <description>Will generate custom financial transactions for AIVL</description>
+  <license>AGPL-3.0</license>
+  <maintainer>
+    <author>SYSTOPIA</author>
+    <email>endres@systopia.de</email>
+  </maintainer>
+  <urls>
+    <url desc="Main Extension Page">https://github.com/systopia/be.aivl.fintrxn</url>
+    <url desc="Documentation">https://github.com/systopia/be.aivl.fintrxn</url>
+    <url desc="Support">https://github.com/systopia/be.aivl.fintrxn/issues</url>
+    <url desc="Licensing">http://www.gnu.org/licenses/agpl-3.0.html</url>
+  </urls>
+  <releaseDate>2017-01-24</releaseDate>
+  <version>0.1</version>
+  <develStage>alpha</develStage>
+  <compatibility>
+    <ver>4.6</ver>
+  </compatibility>
+  <comments></comments>
+  <civix>
+    <namespace>CRM/Fintrxn</namespace>
+  </civix>
+</extension>
