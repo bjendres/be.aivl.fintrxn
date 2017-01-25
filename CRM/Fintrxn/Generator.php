@@ -8,6 +8,7 @@
 | License: AGPLv3, see LICENSE file                      |
 +--------------------------------------------------------*/
 
+
 /**
  * Generator for custom financial transactions
  *
@@ -21,6 +22,7 @@ class CRM_Fintrxn_Generator {
   protected static $_lookup_cache = array();
 
   // variables
+  protected $configuration         = NULL;
   protected $contribution_id       = NULL;
   protected $operation             = NULL;
   protected $old_contribution_data = NULL;
@@ -31,9 +33,14 @@ class CRM_Fintrxn_Generator {
    * basic constructor
    */
   public function __construct($operation, $contribution_id, $old_values) {
+    $this->config = new CRM_Fintrxn_Configuration();
     $this->contribution_id = $contribution_id;
     $this->operation = $operation;
-    $this->old_contribution_data = $old_values;
+    if ($this->operation == 'create') {
+      $this->old_contribution_data = array();
+    } else {
+      $this->old_contribution_data = $old_values;  
+    }
   }
 
   /**
@@ -71,23 +78,66 @@ class CRM_Fintrxn_Generator {
 
     // first some security checks
     if ($operation != $this->operation 
-        || ($this->contribution_id && $this->contribution_id != $contribution_id)) {
+        || ($this->contribution_id && ($this->contribution_id != $contribution_id))) {
       // something's gone wrong here
+      error_log("FINTRXN ERROR: interleaved calls, this shouldn't happen!");
       return;
     }
 
     // will calculate the changes that happened
     $this->calculateChanges($new_values);
 
-    // operation switch
-    if ($operation == 'create') {
-      $trx_data = $this->createTransactionData($this->new_contribution_data);
-      $trx_data['to_financial_account_id'] = $this->getFinancialAccountID($this->new_contribution_data);
-      $this->writeFinancialTrxn($trx_data);
-    
-    } elseif ($operation == 'edit') {
-      // TODO
+    // switch based on case
+    $cases = $this->calculateCases();
+    foreach ($cases as $case) {
+      switch ($case) {
+        case 'incoming':
+          $trx_data = $this->createTransactionData($this->new_contribution_data);
+          $trx_data['from_financial_account_id'] = $this->getIncomingFinancialAccountID($this->new_contribution_data);
+          $trx_data['to_financial_account_id'] = $this->getFinancialAccountID($this->new_contribution_data);
+          $this->writeFinancialTrxn($trx_data);
+          break;
 
+        case 'rebooking':
+          $trx_data = $this->createTransactionData($this->new_contribution_data);
+          $from_account = $this->getFinancialAccountID($this->old_contribution_data);
+          $to_account = $this->getFinancialAccountID($this->new_contribution_data);
+
+          // create first double entry booking
+          $trx_data['to_financial_account_id'] = $to_account;
+          $trx_data['from_financial_account_id'] = $from_account;
+          $this->writeFinancialTrxn($trx_data);
+
+          // create second double entry booking
+          $trx_data['to_financial_account_id'] = $from_account;
+          $trx_data['from_financial_account_id'] = $to_account;
+          $trx_data['amount'] = -$trx_data['amount'];
+          $this->writeFinancialTrxn($trx_data);
+          break;
+
+        case 'amount correction':
+          // TODO:
+          break;
+
+        case 'receive date correction':
+          // TODO:
+          break;
+
+        case 'refund date correction':
+          // TODO:
+          break;
+
+        case 'outgoing':
+          $trx_data = $this->createTransactionData($this->new_contribution_data);
+          $trx_data['from_financial_account_id'] = $this->getFinancialAccountID($this->old_contribution_data);
+          $trx_data['to_financial_account_id'] = $this->getOutgoingFinancialAccountID($this->new_contribution_data);
+          $this->writeFinancialTrxn($trx_data);
+          break;
+        
+        default:
+          error_log("FINTRXN ERROR: unknown case $case");
+          break;
+      }
     }
   }
 
@@ -129,9 +179,48 @@ class CRM_Fintrxn_Generator {
 
 
   /**
+   * Calculate the accounting case here
+   *
+   * @return 'incoming', 'outgoing', 'rebooking' or 'ignored'
+   */
+  protected function calculateCases() {
+    $cases = array();
+    if (in_array('contribution_status_id', $this->changes)) {
+      // contribution status change -> this
+      $old_status = CRM_Utils_Array::value('contribution_status_id', $this->old_contribution_data);
+      $new_status = CRM_Utils_Array::value('contribution_status_id', $this->new_contribution_data);
+
+      if (!$this->config->isCompleted($old_status) 
+              && $this->config->isCompleted($new_status)) {
+        $cases[] = 'incoming';
+
+      } elseif ($this->config->isCompleted($old_status) 
+              && !$this->config->isCompleted($new_status)) {
+        $cases[] = 'outgoing';
+      }
+    }
+
+    if ($this->config->isAccountRelevant($this->changes)) {
+      $cases[] = 'rebooking';
+    }
+
+    if ($this->config->isAmountChange($this->changes)) {
+      $cases[] = 'amount correction';
+    }
+
+    if (in_array('receive_date', $this->changes) && !$this->config->isHypothetical($new_status)) {
+      $cases[] = 'receive date correction';
+    }    
+
+    if (in_array('refund_date', $this->changes) && $this->config->isReturned($new_status)) {
+      $cases[] = 'refund date correction';
+    }    
+  }
+
+  /**
    * populate the $this->new_contribution_data and $this->changes data sets
    */
-  private function calculateChanges($new_values) {
+  protected function calculateChanges($new_values) {
     // FIXME: neither data sets are properly filtered contribution data,
     //   but let's see how far we get without having to reload a contribution
     $this->new_contribution_data = $new_values;
@@ -150,20 +239,16 @@ class CRM_Fintrxn_Generator {
     // TODO: check with accounting/databeheer
     if (empty($contribution_data['campaign_id'])) {
       // TODO: there SHOULD be a fallback account
+      error_log("FINTRXN ERROR: contribution has no campaign!");
       $accounting_code = '0000';
     } else {
       // get the COCOA codes from the campaign
       $campaign = $this->cachedLookup('Campaign', 
           array('id' => $contribution_data['campaign_id'],
-                'return' => 'custom_85,custom_86,custom_87'));
+                'return' => $this->config->getCocoaFieldList()));
 
       // if the contribution year is the acquisition year, use custom_85, otherwise custom_86
-      $year = substr($contribution_data['receive_date'], 0, 4);
-      if ($year == $campaign['custom_87']) {
-        $accounting_code = $campaign['custom_85'];
-      } else {
-        $accounting_code = $campaign['custom_86'];
-      }
+      $accounting_code = $this->config->getCocoaValue($campaign, $contribution_data['receive_date']);
     }
 
     // lookup account id
