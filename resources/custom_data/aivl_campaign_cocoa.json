@@ -1,0 +1,63 @@
+{
+  "aivl_campaign_cocoa": {
+    "name": "aivl_campaign_cocoa",
+    "title": "Amnesty COCOA voor Campaign",
+    "extends": "Campaign",
+    "extends_entity_column_value": "Fundraising campaign",
+    "style": "Inline",
+    "is_active": 1,
+    "is_reserved": 1,
+    "collapse_display": 0,
+    "table_name": "civicrm_value_aivl_campaign_cocoa",
+    "fields": {
+      "profit_loss": {
+        "name": "profit_loss",
+        "label": "COCOA Profit and Loss",
+        "data_type": "String",
+        "html_type": "Select",
+        "option_group":"aivl_cocoa_codes",
+        "is_searchable": 1,
+        "is_view": 0,
+        "column_name": "profit_loss",
+        "weight": -100,
+        "is_active": 1
+      },
+      "acquisition_year": {
+        "name": "acquisition_year",
+        "label": "Year of Acquisition",
+        "data_type": "String",
+        "html_type": "Select",
+        "option_group":"cocoa_acquisition_year",
+        "is_searchable": 1,
+        "is_view": 0,
+        "column_name": "acquisition_year",
+        "weight": -90,
+        "is_active": 1
+      },
+      "code_acquisition": {
+        "name": "code_acquisition",
+        "label": "COCOA Cost Centre Acquisition Year",
+        "data_type": "String",
+        "html_type": "Select",
+        "option_group":"aivl_cocoa_codes",
+        "is_searchable": 1,
+        "is_view": 0,
+        "column_name": "code_acquisition",
+        "weight": -90,
+        "is_active": 1
+      },
+      "code_following": {
+        "name": "code_following",
+        "label": "COCOA Cost Centre Following Years",
+        "data_type": "String",
+        "html_type": "Select",
+        "option_group":"aivl_cocoa_codes",
+        "is_searchable": 1,
+        "is_view": 0,
+        "column_name": "code_following",
+        "weight": -90,
+        "is_active": 1
+      }
+    }
+  }
+}

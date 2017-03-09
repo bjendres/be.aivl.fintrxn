@@ -12,7 +12,7 @@ require_once 'fintrxn.civix.php';
 
 
 /**
- * inform the generator of an upcoming change
+ * create a new instance of the Generator class using the singleton pattern, saving the old values
  */
 function fintrxn_civicrm_pre($op, $objectName, $id, &$params) {
   if ($objectName == 'Contribution') {
@@ -21,7 +21,7 @@ function fintrxn_civicrm_pre($op, $objectName, $id, &$params) {
 }
 
 /**
- * inform the generator of an performed change
+ * inform the generator of a performed change and generate custom financial transactions if required
  */
 function fintrxn_civicrm_post($op, $objectName, $objectId, &$objectRef) {
   if ($objectName == 'Contribution') {
