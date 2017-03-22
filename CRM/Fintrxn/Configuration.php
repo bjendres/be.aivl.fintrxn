@@ -205,6 +205,7 @@ class CRM_Fintrxn_Configuration {
    * @return bool
    */
   public function isCompleted($contributionStatusId) {
+    // TODO: look up status
     return $contributionStatusId == 1;
   }
 
@@ -251,6 +252,81 @@ class CRM_Fintrxn_Configuration {
     }
     $this->_resourcesPath = $resourcesPath;
   }
+
+  /**
+   * check whether the amount has changed.
+   * for AIVL it's easy: fee_amount/net_amount aren't used
+   */
+  public function isAmountChange($changes) {
+    return in_array('total_amount', $changes);
+  }
+
+  /**
+   * check whether the changes indicate that it's a newly created
+   * contribution
+   */
+  public function isNew($changes) {
+    return in_array('id', $changes);
+  }
+
+  /**
+   * Check whether the contribution should have transactions
+   * This should not be the case if it's in status 'pending' or 'in progress',
+   * and you shouldn't be able to later go back to that status either
+   * -> it's a simple check for status
+   */
+  public function hasTransactions($contribution) {
+    if (isset($contribution['contribution_status_id'])) {
+      $contribution_status_id = $contribution['contribution_status_id'];
+      // TODO: look up status
+      if (  $contribution_status_id == 2 /* pending */
+         || $contribution_status_id == 5 /* in progress */) {
+        return FALSE;
+
+      } else {
+        // even if we can't be sure, we have to assume:
+        return TRUE;
+      }
+    } else {
+      // no status ID? that's not good.
+      throw new Exception("Calling Configuration::hasTransactions with incomplete contribution. Maybe we've missed something here.");
+    }
+  }
+
+  /**
+   * calculate whether the changes (list of changed contribution attributes)
+   * are potentially relevant for rebooking.
+   */
+  public function isAccountRelevant($changes) {
+    return    in_array('campaign_id', $changes)
+           || in_array($this->getIncomingBankAccountKey(), $changes)
+           || in_array($this->getRefundBankAccountKey(), $changes);
+  }
+
+  /**
+   * get key of the custom field for the incoming bank account
+   */
+  public function getIncomingBankAccountKey() {
+    // TODO: look up rather than hardcoded
+    return 'custom_72';
+  }
+
+  /**
+   * get key of the custom field for the refund bank account
+   */
+  public function getRefundBankAccountKey() {
+    // TODO: look up rather than hardcoded
+    return 'custom_75';
+  }
+
+  /**
+   * get a list of the cocoa relevant fields
+   */
+  public function getCocoaFieldList() {
+    // TODO: look up rather than hardcoded
+    return 'custom_84,custom_85,custom_86,custom_87';
+  }
+
 
   /**
    * Singleton method

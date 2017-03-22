@@ -113,9 +113,9 @@ class CRM_Fintrxn_Generator {
 
     // switch based on case, which is determined by comparing the old and new values and the changes
     $cases = $this->calculateCases();
-    CRM_Core_Error::debug('cases', $cases);
-    CRM_Core_Error::debug('this', $this);
-    exit();
+    // CRM_Core_Error::debug('cases', $cases);
+    // CRM_Core_Error::debug('this', $this);
+    // exit();
 
     foreach ($cases as $case) {
       switch ($case) {
@@ -148,11 +148,11 @@ class CRM_Fintrxn_Generator {
           break;
 
         case 'receive date correction':
-          // TODO:
+          // TODO: ask Bruno
           break;
 
         case 'refund date correction':
-          // TODO:
+          // TODO: ask Bruno
           break;
 
         case 'outgoing':
@@ -179,19 +179,21 @@ class CRM_Fintrxn_Generator {
    * @param $date
    * @return array
    */
-  protected function createTransactionData($contributionData, $date) {
+  protected function createTransactionData($contributionData, $date = NULL) {
+    if ($date===NULL) $date = date('YmHdis');
+
     return array(
       'trxn_date'             => $date,
-      'total_amount'          => $contributionData['total_amount'],
-      'fee_amount'            => $contributionData['fee_amount'],
-      'net_amount'            => $contributionData['net_amount'],
-      'currency'              => $contributionData['currency'],
-      'trxn_id'               => $contributionData['trxn_id'],
+      'total_amount'          => CRM_Utils_Array::value('total_amount', $contributionData),
+      'fee_amount'            => CRM_Utils_Array::value('fee_amount', $contributionData),
+      'net_amount'            => CRM_Utils_Array::value('net_amount', $contributionData, CRM_Utils_Array::value('total_amount', $contributionData)),
+      'currency'              => CRM_Utils_Array::value('currency', $contributionData),
+      'trxn_id'               => CRM_Utils_Array::value('trxn_id', $contributionData),
       'trxn_result_code'      => '',
-      'status_id'             => $contributionData['status_id'],
-      'payment_processor_id'  => $contributionData['payment_processor_id'],
-      'payment_instrument_id' => $contributionData['payment_instrument_id'],
-      'check_number'          => $contributionData['check_number'],
+      'status_id'             => CRM_Utils_Array::value('contribution_status_id', $contributionData),
+      'payment_processor_id'  => CRM_Utils_Array::value('payment_processor_id', $contributionData),
+      'payment_instrument_id' => CRM_Utils_Array::value('payment_instrument_id', $contributionData),
+      'check_number'          => CRM_Utils_Array::value('check_number', $contributionData),
     );
   }
 
@@ -201,16 +203,8 @@ class CRM_Fintrxn_Generator {
    * @param $data
    */
   protected function writeFinancialTrxn($data) {
-    // TODO - write financial trxn AND entity financial trxn
-    // TODO for incoming : from account is the fin account linked to the Amnesty IBAN's
-    // TODO for refunds : to account is the refunding account of Amnesty
-    // TODO each contribution will have custom fields for incoming and refund account
-
-
-
+    // TODO: Erik: use CRM_Fintrxn_FinancialTransaction / CRM_Fintrxn_EntityFinancialTransaction
     error_log("WOULD WRITE TO civicrm_financial_trxn: " . json_encode($data));
-
-    // TODO: write to entity_financial_trxn
   }
 
   /**
@@ -220,21 +214,23 @@ class CRM_Fintrxn_Generator {
    * @return string 'incoming', 'outgoing', 'rebooking' or 'ignored'
    */
   protected function calculateCases() {
-    error_log(json_encode($this->_changes));
     $cases = array();
     if (in_array('contribution_status_id', $this->_changes)) {
       // contribution status change -> this
       $oldStatus = CRM_Utils_Array::value('contribution_status_id', $this->_oldContributionData);
       $newStatus = CRM_Utils_Array::value('contribution_status_id', $this->_newContributionData);
 
-      // todo: check with Björn
-      // if the status was completed in the pre hook and in the post hook we are dealing with a new
-      // contribution and incoming financial transaction
-      if (!$this->_config->isCompleted($oldStatus) && $this->_config->isCompleted($newStatus)) {
+      // whenever a contribution is set TO 'completed' (including newly created ones)
+      //  this is treated as an incoming transaction
+      if ( !$this->_config->isCompleted($oldStatus)
+         && $this->_config->isCompleted($newStatus)) {
         $cases[] = 'incoming';
-      // if the old status was completed and the new status is NOT completed, we are dealing with a refund, change or
-      // cancel so an outgoing financial transaction
-      } elseif ($this->_config->isCompleted($oldStatus) && !$this->_config->isCompleted($newStatus)) {
+
+      // whenever a contribution is set AWAY from status 'completed' (except newly created ones)
+      //  this is treated as an incoming transaction
+      } elseif ($this->_config->isCompleted($oldStatus)
+            && !$this->_config->isCompleted($newStatus)
+            && !$this->isNew($this->_changes)) {
         $cases[] = 'outgoing';
       }
     }
@@ -247,13 +243,16 @@ class CRM_Fintrxn_Generator {
       $cases[] = 'amount correction';
     }
 
-    if (in_array('receive_date', $this->_changes) && !$this->_config->isHypothetical($newStatus)) {
+    if (  in_array('receive_date', $this->_changes)
+       && $this->_config->hasTransactions($this->_newContributionData)) {
       $cases[] = 'receive date correction';
     }
 
     if (in_array('refund_date', $this->_changes) && $this->_config->isReturned($newStatus)) {
       $cases[] = 'refund date correction';
     }
+
+    return $cases;
   }
 
   /**
@@ -272,6 +271,55 @@ class CRM_Fintrxn_Generator {
       }
     }
   }
+
+
+  /**
+   * look up incoming financial account id based on
+   * the incoming bank account
+   */
+  protected function getIncomingFinancialAccountID($contributionData) {
+    $incoming_bank_account_key = $this->_config->getIncomingBankAccountKey();
+    if (!empty($contributionData[$incoming_bank_account_key])) {
+      $iban = $contributionData[$incoming_bank_account_key];
+
+      // lookup account id
+      $account = $this->cachedLookup('FinancialAccount',array(
+        'name'              => $iban,
+        // TODO: enable: 'account_type_code' => 'AIVLINC'
+        'return'            => 'id'));
+
+      if (empty($account['id'])) {
+        throw new Exception("INC financial account for IBAN '{$iban}' not found.", 1);
+      } else {
+        return $account['id'];
+      }
+    }
+  }
+
+  /**
+   * look up incoming financial account id based on
+   * the incoming bank account
+   */
+  protected function getOutgoingFinancialAccountID($contributionData) {
+    $refund_bank_account_key = $this->_config->getRefundBankAccountKey();
+    if (!empty($contributionData[$refund_bank_account_key])) {
+      $iban = $contributionData[$refund_bank_account_key];
+
+      // lookup account id
+      $account = $this->cachedLookup('FinancialAccount',array(
+        'name'              => $iban,
+        // TODO: enable: 'account_type_code' => 'AIVLINC'
+        'return'            => 'id'));
+
+      if (empty($account['id'])) {
+        throw new Exception("INC financial account for IBAN '{$iban}' not found.", 1);
+      } else {
+        return $account['id'];
+      }
+    }
+  }
+
+
 
   /**
    * calculate the (target) financial account ID of the given contribution
@@ -302,12 +350,13 @@ class CRM_Fintrxn_Generator {
       'return' => 'id'));
 
     if (empty($account['id'])) {
-      // TODO: account not found, issue a warning
+      // TODO: should create financial accounts on the fly (if available)
       return NULL;
     } else {
       return $account['id'];
     }
   }
+
 
   /**
    * Cached API lookup
