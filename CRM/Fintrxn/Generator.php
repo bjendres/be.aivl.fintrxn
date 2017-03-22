@@ -224,14 +224,18 @@ class CRM_Fintrxn_Generator {
       //  this is treated as an incoming transaction
       if ( !$this->_config->isCompleted($oldStatus)
          && $this->_config->isCompleted($newStatus)) {
-        $cases[] = 'incoming';
+        // incoming is always just one
+        //$cases[] = 'incoming';
+        return array('incoming');
 
       // whenever a contribution is set AWAY from status 'completed' (except newly created ones)
       //  this is treated as an incoming transaction
       } elseif ($this->_config->isCompleted($oldStatus)
             && !$this->_config->isCompleted($newStatus)
             && !$this->isNew($this->_changes)) {
-        $cases[] = 'outgoing';
+        // outgoing is always just one
+        //$cases[] = 'outgoing';
+        return array('outgoing');
       }
     }
 

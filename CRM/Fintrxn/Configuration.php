@@ -23,6 +23,8 @@ class CRM_Fintrxn_Configuration {
   private $_cocoaCodeFollowCustomField = NULL;
   private $_cocoaProfitLossCustomField = NULL;
   private $_cocoaCustomGroup = NULL;
+  private $_contributionCustomGroup = NULL;
+  private $_contributionCustomFields = NULL;
   private $_completedContributionStatusId = NULL;
   private $_fundraisingCampaignType = NULL;
   private $_resourcesPath = NULL;
@@ -33,6 +35,7 @@ class CRM_Fintrxn_Configuration {
    */
   function __construct() {
     $this->setCocoaCustomGroup();
+    $this->setContributionCustomGroup();
     $this->setCocoaCustomFields();
     $this->setResourcesPath();
     try {
@@ -161,7 +164,9 @@ class CRM_Fintrxn_Configuration {
         'name' => $cocoaCustomGroupName,
         'extends' => 'Campaign'
       ));
-    } catch (CiviCRM_API3_Exception $ex) {}
+    } catch (CiviCRM_API3_Exception $ex) {
+      error_log("ERROR: Couldn't identify custom group '{$cocoaCustomGroupName}'!");
+    }
   }
 
   /**
@@ -182,6 +187,40 @@ class CRM_Fintrxn_Configuration {
         ));
       } catch (CiviCRM_API3_Exception $ex) {}
     }
+  }
+
+  /**
+   * load the contribution custom group storing
+   *  - incoming bank account
+   *  - refund bank account
+   *  - cancellation fees
+   */
+  private function setContributionCustomGroup() {
+    try {
+      $this->_contributionCustomGroup = civicrm_api3('CustomGroup', 'getsingle', array(
+        'name'    => 'Contribution_Info',
+        'extends' => 'Contribution'
+      ));
+
+      // load the fields as well
+      $fields = civicrm_api3('CustomField', 'get', array(
+        'custom_group_id' => $this->_contributionCustomGroup['id']));
+      $this->_contributionCustomFields = $fields['values'];
+    } catch (CiviCRM_API3_Exception $ex) {
+      error_log("ERROR: Couldn't identify custom group 'Contribution_Info'!");
+    }
+  }
+
+  /**
+   * get the contribution custom field by name
+   */
+  private function getContributionCustomField($field_name) {
+    foreach ($this->_contributionCustomFields as $field) {
+      if ($field['name'] == $field_name) {
+        return $field;
+      }
+    }
+    return NULL;
   }
 
   /**
@@ -307,16 +346,24 @@ class CRM_Fintrxn_Configuration {
    * get key of the custom field for the incoming bank account
    */
   public function getIncomingBankAccountKey() {
-    // TODO: look up rather than hardcoded
-    return 'custom_72';
+    $field = $this->getContributionCustomField('Incoming_Bank_Account');
+    if ($field) {
+      return "custom_{$field['id']}";
+    } else {
+      return NULL;
+    }
   }
 
   /**
    * get key of the custom field for the refund bank account
    */
   public function getRefundBankAccountKey() {
-    // TODO: look up rather than hardcoded
-    return 'custom_75';
+    $field = $this->getContributionCustomField('Refund_Bank_Account');
+    if ($field) {
+      return "custom_{$field['id']}";
+    } else {
+      return NULL;
+    }
   }
 
   /**
