@@ -9,11 +9,17 @@
  * @see http://wiki.civicrm.org/confluence/display/CRMDOC/API+Architecture+Standards
  */
 function _civicrm_api3_cocoa_Load_spec(&$spec) {
-  $spec['magicword']['api.required'] = 1;
+  $spec['file_name'] = array(
+    'name' => 'file_name',
+    'title' => 'file_name',
+    'type' => CRM_Utils_Type::T_STRING,
+    'api.required' => 1
+  );
 }
 
 /**
- * Cocoa.Load API
+ * Cocoa.Load API is used to load cocoa codes from a csv file (name of the file is passed as param).
+ * The file is expected in uploadDir from settings
  *
  * @param array $params
  * @return array API result descriptor
@@ -22,20 +28,42 @@ function _civicrm_api3_cocoa_Load_spec(&$spec) {
  * @throws API_Exception
  */
 function civicrm_api3_cocoa_Load($params) {
-  if (array_key_exists('magicword', $params) && $params['magicword'] == 'sesame') {
-    $returnValues = array(
-      // OK, return several data rows
-      12 => array('id' => 12, 'name' => 'Twelve'),
-      34 => array('id' => 34, 'name' => 'Thirty four'),
-      56 => array('id' => 56, 'name' => 'Fifty six'),
-    );
-    // ALTERNATIVE: $returnValues = array(); // OK, success
-    // ALTERNATIVE: $returnValues = array("Some value"); // OK, return a single value
 
-    // Spec: civicrm_api3_create_success($values = 1, $params = array(), $entity = NULL, $action = NULL)
-    return civicrm_api3_create_success($returnValues, $params, 'NewEntity', 'NewAction');
+  $cocoaCode = new CRM_Fintrxn_CocoaCode();
+  $account = $cocoaCode->findAccountWithTypeAndCampaign(1251, 'acquisition');
+  CRM_Core_Error::debug('account', $account);
+  exit();
+
+
+  $returnValues = array();
+  // check file exists
+  try {
+    $setting = civicrm_api3('Setting', 'get', array('return' => "uploadDir"));
+    $uploadFolder = $setting['values'][$setting['id']]['uploadDir'];
+    // exception if not folder
+    if (!is_dir($uploadFolder)) {
+      throw new API_Exception(ts('The upload Dir ').$uploadFolder.ts(' is not a valid folder or you have no access rights.'), 1000);
+    }
+    // only if file exists
+    $fileName = $uploadFolder.$params['file_name'];
+    // initialize logger and load mapping for cocoa import
+    $logger = new CRM_Fintrxn_Logger('cocoa_load');
+    $logger->logMessage('Info','Starting to load COCOA codes from file '.$fileName);
+    $mapping = CRM_Fintrxn_CocoaCode::getLoadMapping();
+    // process csv file with class from Streetimport, exception if not found
+    if (class_exists('CRM_Streetimport_FileCsvDataSource')) {
+      $dataSource = new CRM_Streetimport_FileCsvDataSource($fileName, $logger, $mapping);
+      $dataSource->reset();
+      $cocoaCode = new CRM_Fintrxn_CocoaCode();
+      while ($dataSource->hasNext()) {
+        $cocoaCode->load($dataSource->next(), $logger);
+      }
+    } else {
+      throw new API_Exception(ts('Could not find class CRM_Streetimport_FileCsvDataSource, this is part of the extension be.aivl.streetimport. 
+        You probably have either disabled or uninstalled this extension. Contact your system administrator'), 1001);
+    }
+  } catch (CiviCRM_API3_Exception $ex) {
+    throw new API_Exception(ts('Could not retrieve the setting for uploadDir in ').__METHOD__, 1002);
   }
-  else {
-    throw new API_Exception(/*errorMessage*/ 'Everyone knows that the magicword is "sesame"', /*errorCode*/ 1234);
-  }
+  return civicrm_api3_create_success($returnValues, $params, 'Cocoa', 'Load');
 }

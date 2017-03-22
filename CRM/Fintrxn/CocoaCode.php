@@ -9,12 +9,14 @@
 class CRM_Fintrxn_CocoaCode {
 
   private $_campaignAccountTypeCode = NULL;
+  private $_ibanAccountTypeCode = NULL;
 
   /**
    * CRM_Fintrxn_CocoaCode constructor.
    */
   function __construct() {
     $this->_campaignAccountTypeCode = 'AIVLCAMPAIGNCOCOA';
+    $this->_ibanAccountTypeCode = 'AIVLINC';
   }
 
   /**
@@ -27,38 +29,172 @@ class CRM_Fintrxn_CocoaCode {
   }
 
   /**
-   * Method to import cocoa code
-   * Expects array sourceData with campaign_id, cocoa P&L, cocoa acquisition year, cocoa following years, acquisition year
+   * Getter for iban account type code
    *
-   * @param $sourceData
+   * @return null|string
    */
-  public function import($sourceData) {
-    // todo implement
+  public function getIbanAccountTypeCode() {
+    return $this->_ibanAccountTypeCode;
+  }
+
+  /**
+   * Method to retrieve the AIVL financial accounts linked to the incoming or refunding account with the iban
+   *
+   * @param $iban
+   * @return array|bool
+   */
+  public function findAccountWithIban($iban) {
+    $result = array();
+    try {
+      $result = civicrm_api3('FinancialAccount', 'getsingle', array(
+        'name' => $iban,
+        'account_type_code' => $this->_ibanAccountTypeCode
+      ));
+    } catch (CiviCRM_API3_Exception $ex) {
+      // todo log error
+    }
+    return $result;
+  }
+
+  /**
+   * Method to get the custom field id for the cocoa custom field with type
+   *
+   * @param $type
+   * @return bool|mixed
+   */
+  private function getCustomFieldId($type) {
+    // return false if no valid types
+    $validTypes = array('profit_loss', 'acquisition', 'following');
+    if (!in_array($type, $validTypes)) {
+      return FALSE;
+    }
     $config = CRM_Fintrxn_Configuration::singleton();
+    switch ($type) {
+      case 'profit_loss':
+        return $config->getCocoaProfitLossCustomField('id');
+        break;
+      case 'acquisition':
+        return $config->getCocoaCodeAcquisitionCustomField('id');
+        break;
+      case 'following':
+        return $config->getCocoaCodeFollowCustomField('id');
+        break;
+    }
+  }
+
+  /**
+   * Method to retrieve the AIVL financial account for the COCOA code for the type linked to the campaign
+   * (type could be profit_loss, acquisition and following
+   *
+   * @param $campaignId
+   * @param $type
+   * @return array
+   */
+  public function findAccountWithTypeAndCampaign($campaignId, $type) {
+    // get custom field id from config based on type
+    $customFieldId = $this->getCustomFieldId($type);
+    $result = array();
+    // first get custom value for the campaign and custom field
+    try {
+      $cocoaData = civicrm_api3('CustomValue', 'get', array(
+        'entity_table' => 'Campaign',
+        'entity_id' => $campaignId,
+        'return.custom_'.$customFieldId => 1
+      ));
+      $cocoaCode = $cocoaData['values'][$customFieldId]['latest'];
+      // then find financial account with cocoa code
+      $finAcct
+      CRM_Core_Error::debug('cocoaData', $cocoaData['values'][$customFieldId]['latest']);
+      exit();
+    } catch (CiviCRM_API3_Exception $ex) {
+      // todo log error
+    }
+    return $result;
+  }
+
+  /**
+   * Method to load cocoa code into the option group
+   *
+   * @param $sourceRecord
+   * @param $logger
+   */
+  public function load($sourceRecord, $logger) {
+    if ($this->validSourceRecord($sourceRecord, $logger) == TRUE) {
+      $config = CRM_Fintrxn_Configuration::singleton();
+      $count = civicrm_api3('OptionValue', 'getcount', array(
+        'option_group_id' => $config->getCocoaCodeOptionGroupId(),
+        'value' => $sourceRecord['cocoa_value']
+      ));
+      if ($count == 0) {
+        $created = $this->createOptionValue($sourceRecord['cocoa_value'], $sourceRecord['cocoa_label']);
+        $logger->logMessage('Info', 'Created option value '.$created['value']
+          .' with label '.$created['label']);
+      } else {
+        $logger->logMessage('Info', 'Option value found for cocoa code '.$sourceRecord['cocoa_value']
+          .' with label '.$sourceRecord['cocoa_label']);
+      }
+    }
+  }
+
+  /**
+   * Private method to validate sourceRecord for load of COCOA codes
+   *
+   * @param $sourceRecord
+   * @param $logger
+   * @return bool
+   */
+  private function validSourceRecord($sourceRecord, $logger) {
+    $message = NULL;
+    if (!is_array($sourceRecord)) {
+      $message = 'Line ignored, could not recognize sourceRecord as an array';
+    } else {
+      $expectedElements = array('cocoa_value', 'cocoa_label', 'id', 'source');
+      foreach ($expectedElements as $expectedElement) {
+        if (!array_key_exists($expectedElement, $sourceRecord)) {
+          $message = 'Line ignored, could not find ' . $expectedElement . ' in source record';
+        }
+      }
+      if (isset($sourceRecord['cocoa_value']) && empty($sourceRecord['cocoa_value'])) {
+        $message = 'Line ignored, empty COCOA code in source record';
+      }
+    }
+    if (!empty($message)) {
+      if (isset($sourceRecord['id'])) {
+        $message .= ' in line ' . $sourceRecord['id'];
+      }
+      $logger->logMessage('Warning', $message);
+      return FALSE;
+    }
+    return TRUE;
   }
 
   /**
    * Method to create option value for cocoa code
    *
-   * @param $cocoaCode
+   * @param $value
+   * @param $label
    * @return mixed
    * @throws Exception when error from API
    */
-  private function createOptionValue($cocoaCode) {
+  private function createOptionValue($value, $label) {
+    if (empty($label)) {
+      $label = 'AIVL COCOA code '.$value;
+    }
     $config = CRM_Fintrxn_Configuration::singleton();
     try {
       $created = civicrm_api3('OptionValue', 'create', array(
-        'option_group_id' => $config->getCocoaOptionGroupId,
-        'name' => 'aivl_cocoa_code_'.$cocoaCode,
-        'value' => $cocoaCode,
-        'label' => $cocoaCode,
+        'option_group_id' => $config->getCocoaCodeOptionGroupId(),
+        'name' => 'aivl_cocoa_code_'.$value,
+        'value' => $value,
+        'label' => $label,
         'is_active' => 1,
         'is_reserved' => 1
       ));
-      return $created['values'];
+      return $created['values'][$created['id']];
     } catch (CiviCRM_API3_Exception $ex) {
       throw new Exception(ts('Could not create an option value in').' '.__METHOD__.' '.ts('for COCOA Code').' '
-        .$cocoaCode.' .'.ts('Contact your system administrator').', '.ts('error from API OptionValue create').': '
+        .$value.' '.ts('with label').' '.$label.' .'.ts('Contact your system administrator').', '
+        .ts('error from API OptionValue create').': '
         .$ex->getMessage());
     }
   }
@@ -106,6 +242,21 @@ class CRM_Fintrxn_CocoaCode {
         .$cocoaCode.' .'.ts('Contact your system administrator').', '.ts('error from API FinancialAccount create').': '
         .$ex->getMessage());
     }
+  }
+
+  /**
+   * Method to find the mapping for the COCOA Load
+   *
+   * @return array|bool
+   */
+  public static function getLoadMapping() {
+    $config = CRM_Fintrxn_Configuration::singleton();
+    $jsonFile = $config->getResourcesPath().'cocoa_mapping.json';
+    if (file_exists($jsonFile)) {
+      $mappingJson = file_get_contents($jsonFile);
+      return json_decode($mappingJson, true);
+    }
+    return FALSE;
   }
 
   /**

@@ -113,9 +113,6 @@ class CRM_Fintrxn_Generator {
 
     // switch based on case, which is determined by comparing the old and new values and the changes
     $cases = $this->calculateCases();
-    CRM_Core_Error::debug('cases', $cases);
-    CRM_Core_Error::debug('this', $this);
-    exit();
 
     foreach ($cases as $case) {
       switch ($case) {
@@ -202,11 +199,6 @@ class CRM_Fintrxn_Generator {
    */
   protected function writeFinancialTrxn($data) {
     // TODO - write financial trxn AND entity financial trxn
-    // TODO for incoming : from account is the fin account linked to the Amnesty IBAN's
-    // TODO for refunds : to account is the refunding account of Amnesty
-    // TODO each contribution will have custom fields for incoming and refund account
-
-
 
     error_log("WOULD WRITE TO civicrm_financial_trxn: " . json_encode($data));
 
