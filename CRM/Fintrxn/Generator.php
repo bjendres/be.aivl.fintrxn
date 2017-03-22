@@ -139,7 +139,7 @@ class CRM_Fintrxn_Generator {
           // create second double entry booking
           $trxData['to_financial_account_id'] = $fromAccount;
           $trxData['from_financial_account_id'] = $toAccount;
-          $trxData['amount'] = -$trxData['amount'];
+          $trxData['total_amount'] = -$trxData['total_amount'];
           $this->writeFinancialTrxn($trxData);
           break;
 

@@ -323,8 +323,13 @@ class CRM_Fintrxn_Configuration {
    * get a list of the cocoa relevant fields
    */
   public function getCocoaFieldList() {
-    // TODO: look up rather than hardcoded
-    return 'custom_84,custom_85,custom_86,custom_87';
+    $fields = array(
+      'custom_' . $this->getCocoaAcquisitionYearCustomField('id'),
+      'custom_' . $this->getCocoaCodeFollowCustomField('id'),
+      'custom_' . $this->getCocoaCodeAcquisitionCustomField('id'),
+      'custom_' . $this->getCocoaProfitLossCustomField('id'));
+
+    return implode(',', $fields);
   }
 
 
