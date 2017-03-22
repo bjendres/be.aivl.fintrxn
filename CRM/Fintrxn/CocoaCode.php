@@ -91,9 +91,9 @@ class CRM_Fintrxn_CocoaCode {
    * @return array
    */
   public function findAccountWithTypeAndCampaign($campaignId, $type) {
+    $result = array();
     // get custom field id from config based on type
     $customFieldId = $this->getCustomFieldId($type);
-    $result = array();
     // first get custom value for the campaign and custom field
     try {
       $cocoaData = civicrm_api3('CustomValue', 'get', array(
@@ -103,9 +103,10 @@ class CRM_Fintrxn_CocoaCode {
       ));
       $cocoaCode = $cocoaData['values'][$customFieldId]['latest'];
       // then find financial account with cocoa code
-      $finAcct
-      CRM_Core_Error::debug('cocoaData', $cocoaData['values'][$customFieldId]['latest']);
-      exit();
+      $result = civicrm_api3('FinancialAccount', 'getsingle', array(
+        'accounting_code' => $cocoaCode,
+        'account_type_code' => $this->_campaignAccountTypeCode,
+      ));
     } catch (CiviCRM_API3_Exception $ex) {
       // todo log error
     }

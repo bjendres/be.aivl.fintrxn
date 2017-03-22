@@ -28,13 +28,6 @@ function _civicrm_api3_cocoa_Load_spec(&$spec) {
  * @throws API_Exception
  */
 function civicrm_api3_cocoa_Load($params) {
-
-  $cocoaCode = new CRM_Fintrxn_CocoaCode();
-  $account = $cocoaCode->findAccountWithTypeAndCampaign(1251, 'acquisition');
-  CRM_Core_Error::debug('account', $account);
-  exit();
-
-
   $returnValues = array();
   // check file exists
   try {
