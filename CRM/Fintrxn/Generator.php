@@ -26,6 +26,7 @@ class CRM_Fintrxn_Generator {
   protected $_config = NULL;
   protected $_contributionId = NULL;
   protected $_operation = NULL;
+  protected $_preContributionData = NULL;
   protected $_oldContributionData = NULL;
   protected $_newContributionData = NULL;
   protected $_changes = NULL;
@@ -40,6 +41,7 @@ class CRM_Fintrxn_Generator {
   public function __construct($operation, $contributionId, $oldValues) {
     $this->_config = CRM_Fintrxn_Configuration::singleton();
     $this->_contributionId = $contributionId;
+    $this->_preContributionData = $oldValues;
     $this->_operation = $operation;
     if ($this->_operation == 'create') {
       $this->_oldContributionData = array();
@@ -121,7 +123,7 @@ class CRM_Fintrxn_Generator {
       switch ($case) {
         case 'incoming':
           $trxData = $this->createTransactionData($this->_newContributionData);
-          $trxData['from_financial_account_id'] = $this->getIncomingFinancialAccountID($this->_newContributionData);
+          $trxData['from_financial_account_id'] = $this->getIncomingFinancialAccountID($this->_newContributionData, $this->_preContributionData);
           $trxData['to_financial_account_id'] = $this->getFinancialAccountID($this->_newContributionData);
           $this->writeFinancialTrxn($trxData);
           break;
@@ -281,11 +283,16 @@ class CRM_Fintrxn_Generator {
    * look up incoming financial account id based on
    * the incoming bank account
    */
-  protected function getIncomingFinancialAccountID($contributionData) {
+  protected function getIncomingFinancialAccountID($contribution_data, $fallback_contribution_data) {
     $incoming_bank_account_key = $this->_config->getIncomingBankAccountKey();
-    if (!empty($contributionData[$incoming_bank_account_key])) {
-      $iban = $contributionData[$incoming_bank_account_key];
+    if (!empty($contribution_data[$incoming_bank_account_key])) {
+      $iban = $contribution_data[$incoming_bank_account_key];
+    }
+    if (empty($iban) && !empty($fallback_contribution_data[$incoming_bank_account_key])) {
+      $iban = $fallback_contribution_data[$incoming_bank_account_key];
+    }
 
+    if (!empty($iban)) {
       // lookup account id
       $account = $this->cachedLookup('FinancialAccount',array(
         'name'              => $iban,
@@ -370,7 +377,7 @@ class CRM_Fintrxn_Generator {
    * @return mixed
    */
   protected function cachedLookup($entity, $selector) {
-    error_log("LOOKUP: $entity " . json_encode($selector));
+    // error_log("LOOKUP: $entity " . json_encode($selector));
     $cacheKey = sha1($entity.json_encode($selector));
     if (array_key_exists($cacheKey, self::$_lookupCache)) {
       return self::$_lookupCache[$cacheKey];
@@ -378,7 +385,7 @@ class CRM_Fintrxn_Generator {
       try {
         $result = civicrm_api3($entity, 'getsingle', $selector);
         self::$_lookupCache[$cacheKey] = $result;
-        error_log("RESULT: " . json_encode($result));
+        // error_log("RESULT: " . json_encode($result));
         return $result;
       } catch (Exception $e) {
         // not uniquely identified
