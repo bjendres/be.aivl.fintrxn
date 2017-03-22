@@ -26,25 +26,37 @@ class CRM_Fintrxn_Generator {
   protected $_config = NULL;
   protected $_contributionId = NULL;
   protected $_operation = NULL;
+  protected $_preContributionData = NULL;
   protected $_oldContributionData = NULL;
   protected $_newContributionData = NULL;
   protected $_changes = NULL;
 
   /**
    * CRM_Fintrxn_Generator constructor, storing the old values of the contribution
-   * 
+   *
    * @param $operation
    * @param $contributionId
    * @param $oldValues
    */
-  public function __construct($operation, $contributionId, $oldValues) {
+  public function __construct($operation, $contributionId, $values) {
     $this->_config = CRM_Fintrxn_Configuration::singleton();
     $this->_contributionId = $contributionId;
+    $this->_preContributionData = $values;
     $this->_operation = $operation;
     if ($this->_operation == 'create') {
       $this->_oldContributionData = array();
+      $this->_newContributionData = $values;
+    } elseif ($this->_operation == 'edit') {
+      $this->_oldContributionData = civicrm_api3('Contribution', 'getsingle', array('id' => $values['id']));
+      $this->_newContributionData = $values;
+
+      // fixes (don't even ask...)
+      if ( empty($this->_oldContributionData['campaign_id'])
+        && !empty($this->_oldContributionData['contribution_campaign_id'])) {
+        $this->_oldContributionData['campaign_id'] = $this->_oldContributionData['contribution_campaign_id'];
+      }
     } else {
-      $this->_oldContributionData = $oldValues;  
+      error_log("OPERATION '{$operation}' was ignored.");
     }
   }
 
@@ -52,20 +64,20 @@ class CRM_Fintrxn_Generator {
    * create a new generator, overwriting an existing one if there is one
    * (expects to be called from a civicrm_pre hook, receiving the old values of the contribution before
    *  the operation is saved in the database)
-   * 
+   *
    * @param $operation
    * @param $oldValues
    * @param $contributionId
    */
-  public static function create($operation, $oldValues, $contributionId) {
-    // error_log("CREATE $operation/$contributionId: " . json_encode($oldValues));
-    self::$_singleton = new CRM_Fintrxn_Generator($operation, $contributionId, $oldValues);
+  public static function create($operation, $values, $contributionId) {
+    // error_log("CREATE $operation/$contributionId: " . json_encode($values));
+    self::$_singleton = new CRM_Fintrxn_Generator($operation, $contributionId, $values);
   }
 
   /**
    * trigger the calculation of financial transactions
    * (expects to be called from the civicrm_post hook, receiving the new values in the ref object)
-   * 
+   *
    * @param $operation
    * @param $contributionId
    * @param $objectRef
@@ -89,7 +101,7 @@ class CRM_Fintrxn_Generator {
   /**
    * main dispatcher function
    * will determine what the changes are, based on the incoming new values and the old values in the class
-   * 
+   *
    * @param $operation
    * @param $contributionId
    * @param $newValues
@@ -97,9 +109,9 @@ class CRM_Fintrxn_Generator {
   public function generateFinancialTrxns($operation, $contributionId, $newValues) {
     // error_log("GENERATE $operation/$contributionId: " . json_encode($newValues));
 
-    // first some security checks to make sure we are actually checking the same contribution and comparing the 
+    // first some security checks to make sure we are actually checking the same contribution and comparing the
     // correct old values and new values
-    if ($operation != $this->_operation 
+    if ($operation != $this->_operation
         || ($this->_contributionId && ($this->_contributionId != $contributionId))) {
       // something's gone wrong here because operation or contributionId is not the same as during construct
       // TODO : more meaningfull message
@@ -113,12 +125,13 @@ class CRM_Fintrxn_Generator {
 
     // switch based on case, which is determined by comparing the old and new values and the changes
     $cases = $this->calculateCases();
+    error_log("CASES: " . json_encode($cases));
 
     foreach ($cases as $case) {
       switch ($case) {
         case 'incoming':
           $trxData = $this->createTransactionData($this->_newContributionData);
-          $trxData['from_financial_account_id'] = $this->getIncomingFinancialAccountID($this->_newContributionData);
+          $trxData['from_financial_account_id'] = $this->getIncomingFinancialAccountID($this->_newContributionData, $this->_preContributionData);
           $trxData['to_financial_account_id'] = $this->getFinancialAccountID($this->_newContributionData);
           $this->writeFinancialTrxn($trxData);
           break;
@@ -136,7 +149,7 @@ class CRM_Fintrxn_Generator {
           // create second double entry booking
           $trxData['to_financial_account_id'] = $fromAccount;
           $trxData['from_financial_account_id'] = $toAccount;
-          $trxData['amount'] = -$trxData['amount'];
+          $trxData['total_amount'] = -$trxData['total_amount'];
           $this->writeFinancialTrxn($trxData);
           break;
 
@@ -145,11 +158,11 @@ class CRM_Fintrxn_Generator {
           break;
 
         case 'receive date correction':
-          // TODO:
+          // TODO: ask Bruno
           break;
 
         case 'refund date correction':
-          // TODO:
+          // TODO: ask Bruno
           break;
 
         case 'outgoing':
@@ -158,53 +171,52 @@ class CRM_Fintrxn_Generator {
           $trxData['to_financial_account_id'] = $this->getOutgoingFinancialAccountID($this->_newContributionData);
           $this->writeFinancialTrxn($trxData);
           break;
-        
+
         default:
           error_log("FINTRXN ERROR: unknown case $case");
           break;
       }
     }
   }
-  
+
   /**
    * create a template for a financial transaction based on contribution data
    *  It will be missing the fields:
    *       from_financial_account_id
    *       to_financial_account_id
-   * 
+   *
    * @param $contributionData
    * @param $date
    * @return array
    */
-  protected function createTransactionData($contributionData, $date) {
+  protected function createTransactionData($contributionData, $date = NULL) {
+    if ($date===NULL) $date = date('YmHdis');
+
     return array(
       'trxn_date'             => $date,
-      'total_amount'          => $contributionData['total_amount'],
-      'fee_amount'            => $contributionData['fee_amount'],
-      'net_amount'            => $contributionData['net_amount'],
-      'currency'              => $contributionData['currency'],
-      'trxn_id'               => $contributionData['trxn_id'],
+      'total_amount'          => CRM_Utils_Array::value('total_amount', $contributionData),
+      'fee_amount'            => CRM_Utils_Array::value('fee_amount', $contributionData),
+      'net_amount'            => CRM_Utils_Array::value('net_amount', $contributionData, CRM_Utils_Array::value('total_amount', $contributionData)),
+      'currency'              => CRM_Utils_Array::value('currency', $contributionData),
+      'trxn_id'               => CRM_Utils_Array::value('trxn_id', $contributionData),
       'trxn_result_code'      => '',
-      'status_id'             => $contributionData['status_id'],
-      'payment_processor_id'  => $contributionData['payment_processor_id'],
-      'payment_instrument_id' => $contributionData['payment_instrument_id'],
-      'check_number'          => $contributionData['check_number'],
+      'status_id'             => CRM_Utils_Array::value('contribution_status_id', $contributionData),
+      'payment_processor_id'  => CRM_Utils_Array::value('payment_processor_id', $contributionData),
+      'payment_instrument_id' => CRM_Utils_Array::value('payment_instrument_id', $contributionData),
+      'check_number'          => CRM_Utils_Array::value('check_number', $contributionData),
     );
   }
 
   /**
    * will create a given financial transaction in the DB
-   * 
+   *
    * @param $data
    */
   protected function writeFinancialTrxn($data) {
-    // TODO - write financial trxn AND entity financial trxn
-
+    // TODO: Erik: use CRM_Fintrxn_FinancialTransaction / CRM_Fintrxn_EntityFinancialTransaction
     error_log("WOULD WRITE TO civicrm_financial_trxn: " . json_encode($data));
-
-    // TODO: write to entity_financial_trxn
   }
-  
+
   /**
    * Calculate the accounting case here based on the comparison between the old values from the pre hook (stored
    * in the class instance) and the new values from the post hook (also stored in the class instance)
@@ -218,15 +230,23 @@ class CRM_Fintrxn_Generator {
       $oldStatus = CRM_Utils_Array::value('contribution_status_id', $this->_oldContributionData);
       $newStatus = CRM_Utils_Array::value('contribution_status_id', $this->_newContributionData);
 
-      // todo: check with Björn
-      // if the status was completed in the pre hook and in the post hook we are dealing with a new
-      // contribution and incoming financial transaction
-      if (!$this->_config->isCompleted($oldStatus) && $this->_config->isCompleted($newStatus)) {
-        $cases[] = 'incoming';
-      // if the old status was completed and the new status is NOT completed, we are dealing with a refund, change or
-      // cancel so an outgoing financial transaction
-      } elseif ($this->_config->isCompleted($oldStatus) && !$this->_config->isCompleted($newStatus)) {
-        $cases[] = 'outgoing';
+      error_log("STATUS CHANGED FROM {$oldStatus} TO {$newStatus}");
+      // whenever a contribution is set TO 'completed' (including newly created ones)
+      //  this is treated as an incoming transaction
+      if ( !$this->_config->isCompleted($oldStatus)
+         && $this->_config->isCompleted($newStatus)) {
+        // incoming is always just one
+        //$cases[] = 'incoming';
+        return array('incoming');
+
+      // whenever a contribution is set AWAY from status 'completed' (except newly created ones)
+      //  this is treated as an incoming transaction
+      } elseif ($this->_config->isCompleted($oldStatus)
+            && !$this->_config->isCompleted($newStatus)
+            && !$this->_config->isNew($this->_changes)) {
+        // outgoing is always just one
+        //$cases[] = 'outgoing';
+        return array('outgoing');
       }
     }
 
@@ -238,35 +258,103 @@ class CRM_Fintrxn_Generator {
       $cases[] = 'amount correction';
     }
 
-    if (in_array('receive_date', $this->_changes) && !$this->_config->isHypothetical($newStatus)) {
+    if (  in_array('receive_date', $this->_changes)
+       && $this->_config->hasTransactions($this->_newContributionData)) {
       $cases[] = 'receive date correction';
-    }    
+    }
 
     if (in_array('refund_date', $this->_changes) && $this->_config->isReturned($newStatus)) {
       $cases[] = 'refund date correction';
-    }    
+    }
+
+    return $cases;
   }
 
   /**
-   * populate the $this->new_contribution_data and $this->changes data sets
-   * 
-   * @param $newValues
+   * populate the $this->changes data
+   * and fill the $this->new_contribution_data
    */
-  protected function calculateChanges($newValues) {
-    // FIXME: neither data sets are properly filtered contribution data,
-    //   but let's see how far we get without having to reload a contribution
-    $this->_newContributionData = $newValues;
+  protected function calculateChanges($updatedValues) {
+    // first, update the new contribution data with the values
+    foreach ($updatedValues as $key => $value) {
+      if ($value !== NULL) {
+        $this->_newContributionData[$key] = $value;
+      }
+    }
+
+    // then, copy the old data values to the new ones, if they haven't changed
+    foreach ($this->_oldContributionData as $key => $value) {
+      if (!isset($this->_newContributionData[$key])) {
+        $this->_newContributionData[$key] = $value;
+      }
+    }
+
+    // finally calculate the changes
     $this->_changes = array();
-    foreach ($newValues as $key => $value) {
-      if ($newValues[$key] != CRM_Utils_Array::value($key, $this->_oldContributionData)) {
+    foreach ($this->_newContributionData as $key => $value) {
+      if ($this->_newContributionData[$key] != CRM_Utils_Array::value($key, $this->_oldContributionData)) {
         $this->_changes[] = $key;
       }
     }
   }
 
+
+  /**
+   * look up incoming financial account id based on
+   * the incoming bank account
+   */
+  protected function getIncomingFinancialAccountID($contribution_data, $fallback_contribution_data) {
+    $incoming_bank_account_key = $this->_config->getIncomingBankAccountKey();
+    if (!empty($contribution_data[$incoming_bank_account_key])) {
+      $iban = $contribution_data[$incoming_bank_account_key];
+    }
+    if (empty($iban) && !empty($fallback_contribution_data[$incoming_bank_account_key])) {
+      $iban = $fallback_contribution_data[$incoming_bank_account_key];
+    }
+
+    if (!empty($iban)) {
+      // lookup account id
+      $account = $this->cachedLookup('FinancialAccount',array(
+        'name'              => $iban,
+        // TODO: enable: 'account_type_code' => 'AIVLINC'
+        'return'            => 'id'));
+
+      if (empty($account['id'])) {
+        throw new Exception("INC financial account for IBAN '{$iban}' not found.", 1);
+      } else {
+        return $account['id'];
+      }
+    }
+  }
+
+  /**
+   * look up incoming financial account id based on
+   * the incoming bank account
+   */
+  protected function getOutgoingFinancialAccountID($contributionData) {
+    $refund_bank_account_key = $this->_config->getRefundBankAccountKey();
+    if (!empty($contributionData[$refund_bank_account_key])) {
+      $iban = $contributionData[$refund_bank_account_key];
+
+      // lookup account id
+      $account = $this->cachedLookup('FinancialAccount',array(
+        'name'              => $iban,
+        // TODO: enable: 'account_type_code' => 'AIVLINC'
+        'return'            => 'id'));
+
+      if (empty($account['id'])) {
+        throw new Exception("INC financial account for IBAN '{$iban}' not found.", 1);
+      } else {
+        return $account['id'];
+      }
+    }
+  }
+
+
+
   /**
    * calculate the (target) financial account ID of the given contribution
-   * 
+   *
    * @param $contributionData
    * @return mixed
    */
@@ -293,22 +381,23 @@ class CRM_Fintrxn_Generator {
       'return' => 'id'));
 
     if (empty($account['id'])) {
-      // TODO: account not found, issue a warning
+      // TODO: should create financial accounts on the fly (if available)
       return NULL;
     } else {
       return $account['id'];
     }
   }
 
+
   /**
    * Cached API lookup
-   * 
+   *
    * @param $entity
    * @param $selector
    * @return mixed
    */
   protected function cachedLookup($entity, $selector) {
-    error_log("LOOKUP: $entity " . json_encode($selector));
+    // error_log("LOOKUP: $entity " . json_encode($selector));
     $cacheKey = sha1($entity.json_encode($selector));
     if (array_key_exists($cacheKey, self::$_lookupCache)) {
       return self::$_lookupCache[$cacheKey];
@@ -316,7 +405,7 @@ class CRM_Fintrxn_Generator {
       try {
         $result = civicrm_api3($entity, 'getsingle', $selector);
         self::$_lookupCache[$cacheKey] = $result;
-        error_log("RESULT: " . json_encode($result));
+        // error_log("RESULT: " . json_encode($result));
         return $result;
       } catch (Exception $e) {
         // not uniquely identified
