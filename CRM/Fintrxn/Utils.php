@@ -10,7 +10,7 @@
 class CRM_Fintrxn_Utils {
 
   /**
-   * Public function to generate label from name
+   * Method to generate label from name
    *
    * @param $name
    * @return string

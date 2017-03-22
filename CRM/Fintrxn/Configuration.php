@@ -25,6 +25,8 @@ class CRM_Fintrxn_Configuration {
   private $_cocoaCustomGroup = NULL;
   private $_completedContributionStatusId = NULL;
   private $_fundraisingCampaignType = NULL;
+  private $_resourcesPath = NULL;
+  private $_cocoaCodeOptionGroupId = NULL;
 
   /**
    * CRM_Fintrxn_Configuration constructor.
@@ -32,6 +34,7 @@ class CRM_Fintrxn_Configuration {
   function __construct() {
     $this->setCocoaCustomGroup();
     $this->setCocoaCustomFields();
+    $this->setResourcesPath();
     try {
       $this->_completedContributionStatusId = civicrm_api3('OptionValue', 'getvalue', array(
         'option_group_id' => 'contribution_status',
@@ -41,6 +44,15 @@ class CRM_Fintrxn_Configuration {
     } catch (CiviCRM_API3_Exception $ex) {
       throw new Exception(ts('Could not find contribution status with name Completed in').' '.__METHOD__.', '.
       ts('contact your system administrator .Error from API OptionValue getvalue').': '.$ex->getMessage());
+    }
+    try {
+      $this->_cocoaCodeOptionGroupId = civicrm_api3('OptionGroup', 'getvalue', array(
+        'name' => 'aivl_cocoa_codes',
+        'return' => 'id'
+      ));
+    } catch (CiviCRM_API3_Exception $ex) {
+      throw new Exception(ts('Could not find option group with name aivl_cocoa_codes in').' '.__METHOD__.', '.
+      ts('contact your system administrator .Error from API OptionGroup getvalue').': '.$ex->getMessage());
     }
     try {
       $this->_fundraisingCampaignType = civicrm_api3('OptionValue', 'getvalue', array(
@@ -54,6 +66,23 @@ class CRM_Fintrxn_Configuration {
     }
   }
 
+  /**
+   * Getter for resources path
+   *
+   * @return null
+   */
+  public function getResourcesPath() {
+    return $this->_resourcesPath;
+  }
+
+  /**
+   * Getter for cocoa code option group id
+   *
+   * @return array|null
+   */
+  public function getCocoaCodeOptionGroupId() {
+    return $this->_cocoaCodeOptionGroupId;
+  }
   /**
    * Getter for cocoa cost centre acquisition year custom field
    *
@@ -193,6 +222,22 @@ class CRM_Fintrxn_Configuration {
     } else {
       return $cocoaData['custom_'.$this->_cocoaCodeFollowCustomField['id']];
     }
+  }
+
+  /**
+   * Method to set the resources path
+   *
+   * @throws Exception
+   */
+  private function setResourcesPath() {
+    $settings = civicrm_api3('Setting', 'Getsingle', array());
+    $resourcesPath = $settings['extensionsDir'].DIRECTORY_SEPARATOR.'be.aivl.fintrxn'.DIRECTORY_SEPARATOR.'resources'.DIRECTORY_SEPARATOR;
+    if (!is_dir($resourcesPath) || !file_exists($resourcesPath)) {
+      throw new Exception(ts('Could not find the folder '.$resourcesPath
+        .' which is required for extension be.aivl.fintrxn in '.__METHOD__
+        .'.It does not exist, is not a folder or you do not have access rights. Contact your system administrator'));
+    }
+    $this->_resourcesPath = $resourcesPath;
   }
 
   /**

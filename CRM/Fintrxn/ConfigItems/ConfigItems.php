@@ -9,6 +9,7 @@
  */
 class CRM_Fintrxn_ConfigItems_ConfigItems {
 
+
   protected $_resourcesPath;
   protected $_customDataDir;
 
@@ -16,15 +17,18 @@ class CRM_Fintrxn_ConfigItems_ConfigItems {
    * CRM_Fintrxn_ConfigItems_ConfigItems constructor.
    */
   function __construct() {
-    $settings = civicrm_api3('Setting', 'Getsingle', array());
-    $resourcesPath = $settings['extensionsDir'].DIRECTORY_SEPARATOR.'be.aivl.fintrxn'.DIRECTORY_SEPARATOR.'resources'.DIRECTORY_SEPARATOR;
-    if (!is_dir($resourcesPath) || !file_exists($resourcesPath)) {
-      throw new Exception(ts('Could not find the folder '.$resourcesPath
-        .' which is required for extension be.aivl.fintrxn in '.__METHOD__
-        .'.It does not exist or is not a folder, contact your system administrator'));
-    }
-    $this->_resourcesPath = $resourcesPath;
-    $this->_customDataDir = $resourcesPath.'custom_data';
+    $config = CRM_Fintrxn_Configuration::singleton();
+    $this->_resourcesPath = $config->getResourcesPath();
+    $this->_customDataDir = $this->_resourcesPath.'custom_data';
+  }
+
+  /**
+   * Getter for resources path
+   *
+   * @return string
+   */
+  public function getResourcesPath() {
+    return $this->_resourcesPath;
   }
 
   /**

@@ -9,7 +9,19 @@
 +--------------------------------------------------------*/
 
 require_once 'fintrxn.civix.php';
-
+/**
+ * Implementation of hook civicrm_custom
+ *
+ * @param $op
+ * @param $groupID
+ * @param $entityID
+ * @param $params
+ * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_custom
+ */
+function fintrxn_civicrm_custom($op, $groupID, $entityID, &$params) {
+  // process custom hook for cocoa codes
+  CRM_Fintrxn_CocoaCode::custom($op, $groupID, $entityID, $params);
+}
 
 /**
  * create a new instance of the Generator class using the singleton pattern, saving the old values

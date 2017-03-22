@@ -38,7 +38,7 @@ class CRM_Fintrxn_Generator {
    * @param $oldValues
    */
   public function __construct($operation, $contributionId, $oldValues) {
-    $this->_config = new CRM_Fintrxn_Configuration();
+    $this->_config = CRM_Fintrxn_Configuration::singleton();
     $this->_contributionId = $contributionId;
     $this->_operation = $operation;
     if ($this->_operation == 'create') {
@@ -71,6 +71,7 @@ class CRM_Fintrxn_Generator {
    * @param $objectRef
    */
   public static function generate($operation, $contributionId, $objectRef) {
+    // todo if the class has not initialized itself, error should be logged?
     if (self::$_singleton != NULL) {
       $newValues = array();
       if ($objectRef) {
@@ -112,6 +113,10 @@ class CRM_Fintrxn_Generator {
 
     // switch based on case, which is determined by comparing the old and new values and the changes
     $cases = $this->calculateCases();
+    CRM_Core_Error::debug('cases', $cases);
+    CRM_Core_Error::debug('this', $this);
+    exit();
+
     foreach ($cases as $case) {
       switch ($case) {
         case 'incoming':
@@ -196,7 +201,12 @@ class CRM_Fintrxn_Generator {
    * @param $data
    */
   protected function writeFinancialTrxn($data) {
-    // TODO
+    // TODO - write financial trxn AND entity financial trxn
+    // TODO for incoming : from account is the fin account linked to the Amnesty IBAN's
+    // TODO for refunds : to account is the refunding account of Amnesty
+    // TODO each contribution will have custom fields for incoming and refund account
+
+
 
     error_log("WOULD WRITE TO civicrm_financial_trxn: " . json_encode($data));
 
@@ -216,6 +226,7 @@ class CRM_Fintrxn_Generator {
       $oldStatus = CRM_Utils_Array::value('contribution_status_id', $this->_oldContributionData);
       $newStatus = CRM_Utils_Array::value('contribution_status_id', $this->_newContributionData);
 
+      // todo: check with Björn
       // if the status was completed in the pre hook and in the post hook we are dealing with a new
       // contribution and incoming financial transaction
       if (!$this->_config->isCompleted($oldStatus) && $this->_config->isCompleted($newStatus)) {
