@@ -38,15 +38,25 @@ class CRM_Fintrxn_Generator {
    * @param $contributionId
    * @param $oldValues
    */
-  public function __construct($operation, $contributionId, $oldValues) {
+  public function __construct($operation, $contributionId, $values) {
     $this->_config = CRM_Fintrxn_Configuration::singleton();
     $this->_contributionId = $contributionId;
-    $this->_preContributionData = $oldValues;
+    $this->_preContributionData = $values;
     $this->_operation = $operation;
     if ($this->_operation == 'create') {
       $this->_oldContributionData = array();
+      $this->_newContributionData = $values;
+    } elseif ($this->_operation == 'edit') {
+      $this->_oldContributionData = civicrm_api3('Contribution', 'getsingle', array('id' => $values['id']));
+      $this->_newContributionData = $values;
+
+      // fixes (don't even ask...)
+      if ( empty($this->_oldContributionData['campaign_id'])
+        && !empty($this->_oldContributionData['contribution_campaign_id'])) {
+        $this->_oldContributionData['campaign_id'] = $this->_oldContributionData['contribution_campaign_id'];
+      }
     } else {
-      $this->_oldContributionData = $oldValues;
+      error_log("OPERATION '{$operation}' was ignored.");
     }
   }
 
@@ -59,9 +69,9 @@ class CRM_Fintrxn_Generator {
    * @param $oldValues
    * @param $contributionId
    */
-  public static function create($operation, $oldValues, $contributionId) {
-    // error_log("CREATE $operation/$contributionId: " . json_encode($oldValues));
-    self::$_singleton = new CRM_Fintrxn_Generator($operation, $contributionId, $oldValues);
+  public static function create($operation, $values, $contributionId) {
+    // error_log("CREATE $operation/$contributionId: " . json_encode($values));
+    self::$_singleton = new CRM_Fintrxn_Generator($operation, $contributionId, $values);
   }
 
   /**
@@ -115,6 +125,7 @@ class CRM_Fintrxn_Generator {
 
     // switch based on case, which is determined by comparing the old and new values and the changes
     $cases = $this->calculateCases();
+    error_log("CASES: " . json_encode($cases));
     // CRM_Core_Error::debug('cases', $cases);
     // CRM_Core_Error::debug('this', $this);
     // exit();
@@ -222,6 +233,7 @@ class CRM_Fintrxn_Generator {
       $oldStatus = CRM_Utils_Array::value('contribution_status_id', $this->_oldContributionData);
       $newStatus = CRM_Utils_Array::value('contribution_status_id', $this->_newContributionData);
 
+      error_log("STATUS CHANGED FROM {$oldStatus} TO {$newStatus}");
       // whenever a contribution is set TO 'completed' (including newly created ones)
       //  this is treated as an incoming transaction
       if ( !$this->_config->isCompleted($oldStatus)
@@ -234,7 +246,7 @@ class CRM_Fintrxn_Generator {
       //  this is treated as an incoming transaction
       } elseif ($this->_config->isCompleted($oldStatus)
             && !$this->_config->isCompleted($newStatus)
-            && !$this->isNew($this->_changes)) {
+            && !$this->_config->isNew($this->_changes)) {
         // outgoing is always just one
         //$cases[] = 'outgoing';
         return array('outgoing');
@@ -262,17 +274,28 @@ class CRM_Fintrxn_Generator {
   }
 
   /**
-   * populate the $this->new_contribution_data and $this->changes data sets
-   *
-   * @param $newValues
+   * populate the $this->changes data
+   * and fill the $this->new_contribution_data
    */
-  protected function calculateChanges($newValues) {
-    // FIXME: neither data sets are properly filtered contribution data,
-    //   but let's see how far we get without having to reload a contribution
-    $this->_newContributionData = $newValues;
+  protected function calculateChanges($updatedValues) {
+    // first, update the new contribution data with the values
+    foreach ($updatedValues as $key => $value) {
+      if ($value !== NULL) {
+        $this->_newContributionData[$key] = $value;
+      }
+    }
+
+    // then, copy the old data values to the new ones, if they haven't changed
+    foreach ($this->_oldContributionData as $key => $value) {
+      if (!isset($this->_newContributionData[$key])) {
+        $this->_newContributionData[$key] = $value;
+      }
+    }
+
+    // finally calculate the changes
     $this->_changes = array();
-    foreach ($newValues as $key => $value) {
-      if ($newValues[$key] != CRM_Utils_Array::value($key, $this->_oldContributionData)) {
+    foreach ($this->_newContributionData as $key => $value) {
+      if ($this->_newContributionData[$key] != CRM_Utils_Array::value($key, $this->_oldContributionData)) {
         $this->_changes[] = $key;
       }
     }
