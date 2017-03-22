@@ -32,7 +32,7 @@ class CRM_Fintrxn_Generator {
 
   /**
    * CRM_Fintrxn_Generator constructor, storing the old values of the contribution
-   * 
+   *
    * @param $operation
    * @param $contributionId
    * @param $oldValues
@@ -44,7 +44,7 @@ class CRM_Fintrxn_Generator {
     if ($this->_operation == 'create') {
       $this->_oldContributionData = array();
     } else {
-      $this->_oldContributionData = $oldValues;  
+      $this->_oldContributionData = $oldValues;
     }
   }
 
@@ -52,7 +52,7 @@ class CRM_Fintrxn_Generator {
    * create a new generator, overwriting an existing one if there is one
    * (expects to be called from a civicrm_pre hook, receiving the old values of the contribution before
    *  the operation is saved in the database)
-   * 
+   *
    * @param $operation
    * @param $oldValues
    * @param $contributionId
@@ -65,7 +65,7 @@ class CRM_Fintrxn_Generator {
   /**
    * trigger the calculation of financial transactions
    * (expects to be called from the civicrm_post hook, receiving the new values in the ref object)
-   * 
+   *
    * @param $operation
    * @param $contributionId
    * @param $objectRef
@@ -89,7 +89,7 @@ class CRM_Fintrxn_Generator {
   /**
    * main dispatcher function
    * will determine what the changes are, based on the incoming new values and the old values in the class
-   * 
+   *
    * @param $operation
    * @param $contributionId
    * @param $newValues
@@ -97,9 +97,9 @@ class CRM_Fintrxn_Generator {
   public function generateFinancialTrxns($operation, $contributionId, $newValues) {
     // error_log("GENERATE $operation/$contributionId: " . json_encode($newValues));
 
-    // first some security checks to make sure we are actually checking the same contribution and comparing the 
+    // first some security checks to make sure we are actually checking the same contribution and comparing the
     // correct old values and new values
-    if ($operation != $this->_operation 
+    if ($operation != $this->_operation
         || ($this->_contributionId && ($this->_contributionId != $contributionId))) {
       // something's gone wrong here because operation or contributionId is not the same as during construct
       // TODO : more meaningfull message
@@ -161,20 +161,20 @@ class CRM_Fintrxn_Generator {
           $trxData['to_financial_account_id'] = $this->getOutgoingFinancialAccountID($this->_newContributionData);
           $this->writeFinancialTrxn($trxData);
           break;
-        
+
         default:
           error_log("FINTRXN ERROR: unknown case $case");
           break;
       }
     }
   }
-  
+
   /**
    * create a template for a financial transaction based on contribution data
    *  It will be missing the fields:
    *       from_financial_account_id
    *       to_financial_account_id
-   * 
+   *
    * @param $contributionData
    * @param $date
    * @return array
@@ -197,7 +197,7 @@ class CRM_Fintrxn_Generator {
 
   /**
    * will create a given financial transaction in the DB
-   * 
+   *
    * @param $data
    */
   protected function writeFinancialTrxn($data) {
@@ -212,7 +212,7 @@ class CRM_Fintrxn_Generator {
 
     // TODO: write to entity_financial_trxn
   }
-  
+
   /**
    * Calculate the accounting case here based on the comparison between the old values from the pre hook (stored
    * in the class instance) and the new values from the post hook (also stored in the class instance)
@@ -220,6 +220,7 @@ class CRM_Fintrxn_Generator {
    * @return string 'incoming', 'outgoing', 'rebooking' or 'ignored'
    */
   protected function calculateCases() {
+    error_log(json_encode($this->_changes));
     $cases = array();
     if (in_array('contribution_status_id', $this->_changes)) {
       // contribution status change -> this
@@ -248,16 +249,16 @@ class CRM_Fintrxn_Generator {
 
     if (in_array('receive_date', $this->_changes) && !$this->_config->isHypothetical($newStatus)) {
       $cases[] = 'receive date correction';
-    }    
+    }
 
     if (in_array('refund_date', $this->_changes) && $this->_config->isReturned($newStatus)) {
       $cases[] = 'refund date correction';
-    }    
+    }
   }
 
   /**
    * populate the $this->new_contribution_data and $this->changes data sets
-   * 
+   *
    * @param $newValues
    */
   protected function calculateChanges($newValues) {
@@ -274,7 +275,7 @@ class CRM_Fintrxn_Generator {
 
   /**
    * calculate the (target) financial account ID of the given contribution
-   * 
+   *
    * @param $contributionData
    * @return mixed
    */
@@ -310,7 +311,7 @@ class CRM_Fintrxn_Generator {
 
   /**
    * Cached API lookup
-   * 
+   *
    * @param $entity
    * @param $selector
    * @return mixed

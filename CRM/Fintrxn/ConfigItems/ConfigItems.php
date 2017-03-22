@@ -17,8 +17,7 @@ class CRM_Fintrxn_ConfigItems_ConfigItems {
    * CRM_Fintrxn_ConfigItems_ConfigItems constructor.
    */
   function __construct() {
-    $config = CRM_Fintrxn_Configuration::singleton();
-    $this->_resourcesPath = $config->getResourcesPath();
+    $this->_resourcesPath = CRM_Fintrxn_Configuration::getDefaultResourcesPath();
     $this->_customDataDir = $this->_resourcesPath.'custom_data';
   }
 

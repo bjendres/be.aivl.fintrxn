@@ -185,7 +185,7 @@ class CRM_Fintrxn_Configuration {
   }
 
   /**
-   * check if a change to the given attributes could potentially trigger 
+   * check if a change to the given attributes could potentially trigger
    * the financial transaction processing
    *
    * @param array $changes
@@ -222,6 +222,18 @@ class CRM_Fintrxn_Configuration {
     } else {
       return $cocoaData['custom_'.$this->_cocoaCodeFollowCustomField['id']];
     }
+  }
+
+  public static function getDefaultResourcesPath() {
+    // TODO: erik: find a way to get the path w/o init config (for configitems)
+    $settings = civicrm_api3('Setting', 'Getsingle', array());
+    $resourcesPath = $settings['extensionsDir'].DIRECTORY_SEPARATOR.'be.aivl.fintrxn'.DIRECTORY_SEPARATOR.'resources'.DIRECTORY_SEPARATOR;
+    if (!is_dir($resourcesPath) || !file_exists($resourcesPath)) {
+      throw new Exception(ts('Could not find the folder '.$resourcesPath
+        .' which is required for extension be.aivl.fintrxn in '.__METHOD__
+        .'.It does not exist, is not a folder or you do not have access rights. Contact your system administrator'));
+    }
+    return $resourcesPath;
   }
 
   /**
