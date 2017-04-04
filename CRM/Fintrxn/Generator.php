@@ -94,6 +94,7 @@ class CRM_Fintrxn_Generator {
           }
         }
       }
+      // todo validate prior to migration and show status error on exception
       self::$_singleton->generateFinancialTrxns($operation, $contributionId, $newValues);
     }
   }
@@ -107,7 +108,6 @@ class CRM_Fintrxn_Generator {
    * @param $newValues
    */
   public function generateFinancialTrxns($operation, $contributionId, $newValues) {
-    // error_log("GENERATE $operation/$contributionId: " . json_encode($newValues));
 
     // first some security checks to make sure we are actually checking the same contribution and comparing the
     // correct old values and new values
@@ -115,66 +115,69 @@ class CRM_Fintrxn_Generator {
         || ($this->_contributionId && ($this->_contributionId != $contributionId))) {
       // something's gone wrong here because operation or contributionId is not the same as during construct
       // TODO : more meaningfull message
-      error_log("FINTRXN ERROR: interleaved calls in ".__METHOD__.", this shouldn't happen!");
+      // TODO: with Exception!
+      error_log("FINTRXN ERROR: interleaved calls (? contributionId is different as in __construct) in ".__METHOD__
+        .", this shouldn't happen!");
       return;
     }
 
     // will calculate the changes between the new values from the post hook and the old values from the pre hook, stored
     // in the class instance
-    $this->calculateChanges($newValues);
+    if ($operation != 'delete') {
+      $this->calculateChanges($newValues);
+      // switch based on case, which is determined by comparing the old and new values and the changes
+      $cases = $this->calculateCases();
+      error_log("CASES: " . json_encode($cases));
 
-    // switch based on case, which is determined by comparing the old and new values and the changes
-    $cases = $this->calculateCases();
-    error_log("CASES: " . json_encode($cases));
+      foreach ($cases as $case) {
+        switch ($case) {
+          case 'incoming':
+            $trxData = $this->createTransactionData($this->_newContributionData);
+            $trxData['from_financial_account_id'] = $this->getIncomingFinancialAccountID($this->_newContributionData, $this->_preContributionData);
+            $trxData['to_financial_account_id'] = $this->getFinancialAccountID($this->_newContributionData);
+            $this->writeTransaction($trxData);
+            break;
 
-    foreach ($cases as $case) {
-      switch ($case) {
-        case 'incoming':
-          $trxData = $this->createTransactionData($this->_newContributionData);
-          $trxData['from_financial_account_id'] = $this->getIncomingFinancialAccountID($this->_newContributionData, $this->_preContributionData);
-          $trxData['to_financial_account_id'] = $this->getFinancialAccountID($this->_newContributionData);
-          $this->writeFinancialTrxn($trxData);
-          break;
+          case 'rebooking':
+            $trxData = $this->createTransactionData($this->_newContributionData);
+            $fromAccount = $this->getFinancialAccountID($this->_oldContributionData);
+            $toAccount = $this->getFinancialAccountID($this->_newContributionData);
 
-        case 'rebooking':
-          $trxData = $this->createTransactionData($this->_newContributionData);
-          $fromAccount = $this->getFinancialAccountID($this->_oldContributionData);
-          $toAccount = $this->getFinancialAccountID($this->_newContributionData);
+            // create first double entry booking
+            $trxData['to_financial_account_id'] = $toAccount;
+            $trxData['from_financial_account_id'] = $fromAccount;
+            $this->writeTransaction($trxData);
 
-          // create first double entry booking
-          $trxData['to_financial_account_id'] = $toAccount;
-          $trxData['from_financial_account_id'] = $fromAccount;
-          $this->writeFinancialTrxn($trxData);
+            // create second double entry booking
+            $trxData['to_financial_account_id'] = $fromAccount;
+            $trxData['from_financial_account_id'] = $toAccount;
+            $trxData['total_amount'] = -$trxData['total_amount'];
+            $this->writeTransaction($trxData);
+            break;
 
-          // create second double entry booking
-          $trxData['to_financial_account_id'] = $fromAccount;
-          $trxData['from_financial_account_id'] = $toAccount;
-          $trxData['total_amount'] = -$trxData['total_amount'];
-          $this->writeFinancialTrxn($trxData);
-          break;
+          case 'amount correction':
+            // TODO:
+            break;
 
-        case 'amount correction':
-          // TODO:
-          break;
+          case 'receive date correction':
+            // TODO: ask Bruno
+            break;
 
-        case 'receive date correction':
-          // TODO: ask Bruno
-          break;
+          case 'refund date correction':
+            // TODO: ask Bruno
+            break;
 
-        case 'refund date correction':
-          // TODO: ask Bruno
-          break;
+          case 'outgoing':
+            $trxData = $this->createTransactionData($this->_newContributionData);
+            $trxData['from_financial_account_id'] = $this->getFinancialAccountID($this->_oldContributionData);
+            $trxData['to_financial_account_id'] = $this->getOutgoingFinancialAccountID($this->_newContributionData);
+            $this->writeTransaction($trxData);
+            break;
 
-        case 'outgoing':
-          $trxData = $this->createTransactionData($this->_newContributionData);
-          $trxData['from_financial_account_id'] = $this->getFinancialAccountID($this->_oldContributionData);
-          $trxData['to_financial_account_id'] = $this->getOutgoingFinancialAccountID($this->_newContributionData);
-          $this->writeFinancialTrxn($trxData);
-          break;
-
-        default:
-          error_log("FINTRXN ERROR: unknown case $case");
-          break;
+          default:
+            error_log("FINTRXN ERROR: unknown case $case");
+            break;
+        }
       }
     }
   }
@@ -190,8 +193,9 @@ class CRM_Fintrxn_Generator {
    * @return array
    */
   protected function createTransactionData($contributionData, $date = NULL) {
-    if ($date===NULL) $date = date('YmHdis');
-
+    if ($date===NULL) {
+      $date = date('YmdHis');
+    }
     return array(
       'trxn_date'             => $date,
       'total_amount'          => CRM_Utils_Array::value('total_amount', $contributionData),
@@ -212,9 +216,33 @@ class CRM_Fintrxn_Generator {
    *
    * @param $data
    */
-  protected function writeFinancialTrxn($data) {
-    // TODO: Erik: use CRM_Fintrxn_FinancialTransaction / CRM_Fintrxn_EntityFinancialTransaction
-    error_log("WOULD WRITE TO civicrm_financial_trxn: " . json_encode($data));
+  protected function writeTransaction($data) {
+    try {
+      $financialTrxn = civicrm_api3('FinancialTrxn', 'create', $data);
+      // now add entity
+      civicrm_api3('EntityFinancialTrxn', 'create', $this->createEntityTransactionData($financialTrxn));
+
+    } catch (CiviCRM_API3_Exception $ex) {
+      error_log('Could not create financial transaction and/or entity financial transaction in '.__METHOD__
+        .', error message from API FinancialTrxn Create: '.$ex->getMessage());
+    }
+  }
+
+  /**
+   * Method to write entity financial transaction data
+   *
+   * @param $financialTrxn
+   * @return array
+   */
+  protected function createEntityTransactionData($financialTrxn) {
+    // todo what to do if in case of refunds etc? is _contributionId filled? And should I only use the _newContribution is that
+    // todo one is empty?
+    return array(
+      'entity_table' => 'civicrm_contribution',
+      'entity_id' => $this->_newContributionData['id'],
+      'financial_trxn_id' => $financialTrxn['id'],
+      'amount' => $this->_newContributionData['total_amount']
+    );
   }
 
   /**
@@ -303,23 +331,27 @@ class CRM_Fintrxn_Generator {
    * look up incoming financial account id based on
    * the incoming bank account
    */
-  protected function getIncomingFinancialAccountID($contribution_data, $fallback_contribution_data) {
-    $incoming_bank_account_key = $this->_config->getIncomingBankAccountKey();
-    if (!empty($contribution_data[$incoming_bank_account_key])) {
-      $iban = $contribution_data[$incoming_bank_account_key];
+  protected function getIncomingFinancialAccountID($contributionData, $fallbackContributionData) {
+    $incomingBankAccountKey = $this->_config->getIncomingBankAccountKey();
+    if (isset($contributionData['custom'][$incomingBankAccountKey])) {
+      foreach($contributionData['custom'][$incomingBankAccountKey] as $customFieldData) {
+        if (!empty($customFieldData['value'])) {
+          $iban = $customFieldData['value'];
+        }
+      }
     }
-    if (empty($iban) && !empty($fallback_contribution_data[$incoming_bank_account_key])) {
-      $iban = $fallback_contribution_data[$incoming_bank_account_key];
+    if (empty($iban) && isset($fallbackContributionData['custom'][$incomingBankAccountKey])) {
+      foreach($fallbackContributionData['custom'][$incomingBankAccountKey] as $customFieldData) {
+        if (!empty($customFieldData['value'])) {
+          $iban = $customFieldData['value'];
+        }
+      }
     }
-
     if (!empty($iban)) {
       // lookup account id
-      $account = $this->cachedLookup('FinancialAccount',array(
-        'name'              => $iban,
-        // TODO: enable: 'account_type_code' => 'AIVLINC'
-        'return'            => 'id'));
-
-      if (empty($account['id'])) {
+      $cocoaCode = new CRM_Fintrxn_CocoaCode();
+      $account = $cocoaCode->findAccountWithName($iban, $this->_config->getIbanAccountTypeCode());
+      if (empty($account)) {
         throw new Exception("INC financial account for IBAN '{$iban}' not found.", 1);
       } else {
         return $account['id'];
@@ -332,17 +364,19 @@ class CRM_Fintrxn_Generator {
    * the incoming bank account
    */
   protected function getOutgoingFinancialAccountID($contributionData) {
-    $refund_bank_account_key = $this->_config->getRefundBankAccountKey();
-    if (!empty($contributionData[$refund_bank_account_key])) {
-      $iban = $contributionData[$refund_bank_account_key];
-
+    $refundBankAccountKey = $this->_config->getRefundBankAccountKey();
+    if (isset($contributionData['custom'][$refundBankAccountKey])) {
+      foreach($contributionData['custom'][$refundBankAccountKey] as $customFieldData) {
+        if (!empty($customFieldData['value'])) {
+          $iban = $customFieldData['value'];
+        }
+      }
+    }
+    if (!empty($iban)) {
       // lookup account id
-      $account = $this->cachedLookup('FinancialAccount',array(
-        'name'              => $iban,
-        // TODO: enable: 'account_type_code' => 'AIVLINC'
-        'return'            => 'id'));
-
-      if (empty($account['id'])) {
+      $cocoaCode = new CRM_Fintrxn_CocoaCode();
+      $account = $cocoaCode->findAccountWithName($iban, $this->_config->getIbanAccountTypeCode());
+      if (empty($account)) {
         throw new Exception("INC financial account for IBAN '{$iban}' not found.", 1);
       } else {
         return $account['id'];
@@ -359,33 +393,24 @@ class CRM_Fintrxn_Generator {
    * @return mixed
    */
   protected function getFinancialAccountID($contributionData) {
-    // TODO: check with accounting/databeheer
     if (empty($contributionData['campaign_id'])) {
-      // TODO: there SHOULD be a fallback account
       error_log("FINTRXN ERROR: contribution has no campaign!");
-      $accountingCode = '0000';
+      $accountCode = '0000';
     } else {
       // get the COCOA codes from the campaign
       $campaign = $this->cachedLookup('Campaign', array(
         'id' => $contributionData['campaign_id'],
         'return' => $this->_config->getCocoaFieldList()));
-
-      // if the contribution year is the acquisition year, use custom_85, otherwise custom_86
-      // TODO: check with Ilja what the new situation is to be, expect always use custom_85
-      $accountingCode = $this->_config->getCocoaValue($campaign, $contributionData['receive_date']);
+      $accountCode = $this->_config->getCocoaValue($campaign, $contributionData['receive_date']);
     }
-
     // lookup account id
-    $account = $this->cachedLookup('FinancialAccount',array(
-      'accounting_code' => $accountingCode,
-      'return' => 'id'));
-
+    $cocoaCode = new CRM_Fintrxn_CocoaCode();
+    $account = $cocoaCode->findAccountWithAccountCode($accountCode, $this->_config->getCampaignAccountTypeCode());
     if (empty($account['id'])) {
-      // TODO: should create financial accounts on the fly (if available)
-      return NULL;
-    } else {
-      return $account['id'];
+      $cocoaCode->createFinancialAccount($accountCode, $this->_config->getCampaignAccountTypeCode());
+      $account = $cocoaCode->findAccountWithAccountCode($accountCode, $this->_config->getCampaignAccountTypeCode());
     }
+    return $account['id'];
   }
 
 

@@ -15,40 +15,44 @@ class CRM_Fintrxn_CocoaCode {
    * CRM_Fintrxn_CocoaCode constructor.
    */
   function __construct() {
-    $this->_campaignAccountTypeCode = 'AIVLCAMPAIGNCOCOA';
-    $this->_ibanAccountTypeCode = 'AIVLINC';
+    $config = CRM_Fintrxn_Configuration::singleton();
+    $this->_campaignAccountTypeCode = $config->getCampaignAccountTypeCode();
+    $this->_ibanAccountTypeCode = $config->getIbanAccountTypeCode();
   }
 
   /**
-   * Getter for campaign account type code
+   * Method to retrieve the AIVL financial accounts linked to COCOA with the COCOA code and the account type code
    *
-   * @return null|string
-   */
-  public function getCampaignAccountTypeCode() {
-    return $this->_campaignAccountTypeCode;
-  }
-
-  /**
-   * Getter for iban account type code
-   *
-   * @return null|string
-   */
-  public function getIbanAccountTypeCode() {
-    return $this->_ibanAccountTypeCode;
-  }
-
-  /**
-   * Method to retrieve the AIVL financial accounts linked to the incoming or refunding account with the iban
-   *
-   * @param $iban
+   * @param $cocoaCode
+   * @param $accountTypeCode
    * @return array|bool
    */
-  public function findAccountWithIban($iban) {
+  public function findAccountWithName($accountName, $accountTypeCode) {
     $result = array();
     try {
       $result = civicrm_api3('FinancialAccount', 'getsingle', array(
-        'name' => $iban,
-        'account_type_code' => $this->_ibanAccountTypeCode
+        'name' => $accountName,
+        'account_type_code' => $accountTypeCode
+      ));
+    } catch (CiviCRM_API3_Exception $ex) {
+      // todo log error
+    }
+    return $result;
+  }
+
+  /**
+   * Method to retrieve the AIVL financial accounts linked to COCOA with the COCOA code and the account type code
+   *
+   * @param $cocoaCode
+   * @param $accountTypeCode
+   * @return array|bool
+   */
+  public function findAccountWithAccountCode($cocoaCode, $accountTypeCode) {
+    $result = array();
+    try {
+      $result = civicrm_api3('FinancialAccount', 'getsingle', array(
+        'accounting_code' => $cocoaCode,
+        'account_type_code' => $accountTypeCode
       ));
     } catch (CiviCRM_API3_Exception $ex) {
       // todo log error
@@ -80,37 +84,6 @@ class CRM_Fintrxn_CocoaCode {
         return $config->getCocoaCodeFollowCustomField('id');
         break;
     }
-  }
-
-  /**
-   * Method to retrieve the AIVL financial account for the COCOA code for the type linked to the campaign
-   * (type could be profit_loss, acquisition and following
-   *
-   * @param $campaignId
-   * @param $type
-   * @return array
-   */
-  public function findAccountWithTypeAndCampaign($campaignId, $type) {
-    $result = array();
-    // get custom field id from config based on type
-    $customFieldId = $this->getCustomFieldId($type);
-    // first get custom value for the campaign and custom field
-    try {
-      $cocoaData = civicrm_api3('CustomValue', 'get', array(
-        'entity_table' => 'Campaign',
-        'entity_id' => $campaignId,
-        'return.custom_'.$customFieldId => 1
-      ));
-      $cocoaCode = $cocoaData['values'][$customFieldId]['latest'];
-      // then find financial account with cocoa code
-      $result = civicrm_api3('FinancialAccount', 'getsingle', array(
-        'accounting_code' => $cocoaCode,
-        'account_type_code' => $this->_campaignAccountTypeCode,
-      ));
-    } catch (CiviCRM_API3_Exception $ex) {
-      // todo log error
-    }
-    return $result;
   }
 
   /**

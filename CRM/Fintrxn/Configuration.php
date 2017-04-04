@@ -29,6 +29,9 @@ class CRM_Fintrxn_Configuration {
   private $_fundraisingCampaignType = NULL;
   private $_resourcesPath = NULL;
   private $_cocoaCodeOptionGroupId = NULL;
+  private $_campaignAccountTypeCode = NULL;
+  private $_ibanAccountTypeCode = NULL;
+
 
   /**
    * CRM_Fintrxn_Configuration constructor.
@@ -38,6 +41,7 @@ class CRM_Fintrxn_Configuration {
     $this->setContributionCustomGroup();
     $this->setCocoaCustomFields();
     $this->setResourcesPath();
+    $this->setAccountTypeCodes();
     try {
       $this->_completedContributionStatusId = civicrm_api3('OptionValue', 'getvalue', array(
         'option_group_id' => 'contribution_status',
@@ -69,6 +73,23 @@ class CRM_Fintrxn_Configuration {
     }
   }
 
+  /**
+   * Getter for campaign financial account code (COCOA)
+   *
+   * @return null
+   */
+  public function getCampaignAccountTypeCode() {
+    return $this->_campaignAccountTypeCode;
+  }
+
+  /**
+   * Getter for IBAN (incoming) financial account code (COCOA)
+   *
+   * @return null
+   */
+  public function getIbanAccountTypeCode() {
+    return $this->_ibanAccountTypeCode;
+  }
   /**
    * Getter for resources path
    *
@@ -348,7 +369,7 @@ class CRM_Fintrxn_Configuration {
   public function getIncomingBankAccountKey() {
     $field = $this->getContributionCustomField('Incoming_Bank_Account');
     if ($field) {
-      return "custom_{$field['id']}";
+      return $field['id'];
     } else {
       return NULL;
     }
@@ -379,6 +400,13 @@ class CRM_Fintrxn_Configuration {
     return implode(',', $fields);
   }
 
+  /**
+   * Method to set the account type codes for the COCOA financial accounts
+   */
+  public function setAccountTypeCodes() {
+    $this->_campaignAccountTypeCode = 'AIVLCAMPAIGNCOCOA';
+    $this->_ibanAccountTypeCode = 'AIVLINC';
+  }
 
   /**
    * Singleton method
