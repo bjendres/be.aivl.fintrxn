@@ -25,13 +25,15 @@ class CRM_Fintrxn_Configuration {
   private $_cocoaCustomGroup = NULL;
   private $_contributionCustomGroup = NULL;
   private $_contributionCustomFields = NULL;
-  private $_completedContributionStatusId = NULL;
   private $_fundraisingCampaignType = NULL;
   private $_resourcesPath = NULL;
-  private $_cocoaCodeOptionGroupId = NULL;
+  private $_cocoaCostCentreOptionGroupId = NULL;
+  private $_cocoaProfitLossOptionGroupId = NULL;
   private $_campaignAccountTypeCode = NULL;
   private $_ibanAccountTypeCode = NULL;
-
+  private $_plTypeCode = NULL;
+  private $_cancelContributionStatus = NULL;
+  private $_refundContributionStatus = NULL;
 
   /**
    * CRM_Fintrxn_Configuration constructor.
@@ -42,23 +44,23 @@ class CRM_Fintrxn_Configuration {
     $this->setCocoaCustomFields();
     $this->setResourcesPath();
     $this->setAccountTypeCodes();
+    $this->setContributionStatus();
     try {
-      $this->_completedContributionStatusId = civicrm_api3('OptionValue', 'getvalue', array(
-        'option_group_id' => 'contribution_status',
-        'name' => 'Completed',
-        'return' => 'value'
-      ));
-    } catch (CiviCRM_API3_Exception $ex) {
-      throw new Exception(ts('Could not find contribution status with name Completed in').' '.__METHOD__.', '.
-      ts('contact your system administrator .Error from API OptionValue getvalue').': '.$ex->getMessage());
-    }
-    try {
-      $this->_cocoaCodeOptionGroupId = civicrm_api3('OptionGroup', 'getvalue', array(
-        'name' => 'aivl_cocoa_codes',
+      $this->_cocoaCostCentreOptionGroupId = civicrm_api3('OptionGroup', 'getvalue', array(
+        'name' => 'aivl_cocoa_cost_centre',
         'return' => 'id'
       ));
     } catch (CiviCRM_API3_Exception $ex) {
-      throw new Exception(ts('Could not find option group with name aivl_cocoa_codes in').' '.__METHOD__.', '.
+      throw new Exception(ts('Could not find option group with name aivl_cocoa_cost_centre in').' '.__METHOD__.', '.
+      ts('contact your system administrator .Error from API OptionGroup getvalue').': '.$ex->getMessage());
+    }
+    try {
+      $this->_cocoaProfitLossOptionGroupId = civicrm_api3('OptionGroup', 'getvalue', array(
+        'name' => 'aivl_cocoa_profit_loss',
+        'return' => 'id'
+      ));
+    } catch (CiviCRM_API3_Exception $ex) {
+      throw new Exception(ts('Could not find option group with name aivl_cocoa_profit_loss in').' '.__METHOD__.', '.
       ts('contact your system administrator .Error from API OptionGroup getvalue').': '.$ex->getMessage());
     }
     try {
@@ -71,6 +73,33 @@ class CRM_Fintrxn_Configuration {
       throw new Exception(ts('Could not find campaign type with name Fundraising campaign in').' '.__METHOD__.', '.
       ts('contact your system administrator .Error from API OptionValue getvalue').': '.$ex->getMessage());
     }
+  }
+
+  /**
+   * Getter for cancelled contribution status
+   *
+   * @return array
+   */
+  public function getCancelContributionStatus() {
+    return $this->_cancelContributionStatus;
+  }
+
+  /**
+   * Getter for refund contribution status
+   *
+   * @return array
+   */
+  public function getRefundContributionStatus() {
+    return $this->_refundContributionStatus;
+  }
+
+  /**
+   * Getter for profit loss cocoa code
+   *
+   * @return null
+   */
+  public function getPlTypeCode() {
+    return $this->_plTypeCode;
   }
 
   /**
@@ -100,13 +129,23 @@ class CRM_Fintrxn_Configuration {
   }
 
   /**
-   * Getter for cocoa code option group id
+   * Getter for cocoa cost centre option group id
    *
    * @return array|null
    */
-  public function getCocoaCodeOptionGroupId() {
-    return $this->_cocoaCodeOptionGroupId;
+  public function getCocoaCostCentreOptionGroupId() {
+    return $this->_cocoaCostCentreOptionGroupId;
   }
+
+  /**
+   * Getter for cocoa profit loss option group id
+   *
+   * @return array|null
+   */
+  public function getCocoaProfitLossOptionGroupId() {
+    return $this->_cocoaProfitLossOptionGroupId;
+  }
+
   /**
    * Getter for cocoa cost centre acquisition year custom field
    *
@@ -145,15 +184,6 @@ class CRM_Fintrxn_Configuration {
    */
   public function getCocoaAcquisitionYearCustomField($key) {
     return $this->_cocoaAcquisitionYearCustomField[$key];
-  }
-
-  /**
-   * Getter for completed contribution status
-   *
-   * @return string
-   */
-  public function getCompletedContributionStatusId() {
-    return $this->_completedContributionStatusId;
   }
 
   /**
@@ -233,40 +263,42 @@ class CRM_Fintrxn_Configuration {
   }
 
   /**
-   * get the contribution custom field by name
+   * Getter for contribution custom fields
+   *
+   * @return null
    */
-  private function getContributionCustomField($field_name) {
+  public function getContributionCustomFields() {
+    return $this->_contributionCustomFields;
+  }
+
+  /**
+   * Getter for the contribution custom field for incoming amount
+   *
+   * @param $key
+   * @return mixed|null
+   */
+  public function getIncomingAccountCustomField($key = 'id') {
     foreach ($this->_contributionCustomFields as $field) {
-      if ($field['name'] == $field_name) {
-        return $field;
+      if ($field['name'] == 'Incoming_Bank_Account') {
+        return $field[$key];
       }
     }
     return NULL;
   }
 
   /**
-   * check if a change to the given attributes could potentially trigger
-   * the financial transaction processing
+   * Getter for the contribution custom field for refund amount
    *
-   * @param array $changes
-   * @return bool
+   * @param $key
+   * @return mixed|NULL
    */
-  public function isRelevant($changes) {
-    return   in_array('campaign_id', $changes)
-          || in_array('contribution_status_id', $changes)
-          || in_array('amount', $changes)
-          || in_array('', $changes);
-  }
-
-  /**
-   * check if the given status counts as completed
-   *
-   * @param $contributionStatusId
-   * @return bool
-   */
-  public function isCompleted($contributionStatusId) {
-    // TODO: look up status
-    return $contributionStatusId == 1;
+  public function getRefundAccountCustomField($key) {
+    foreach ($this->_contributionCustomFields as $field) {
+      if ($field['name'] == 'Refund_Bank_Account') {
+        return $field[$key];
+      }
+    }
+    return NULL;
   }
 
   /**
@@ -314,80 +346,6 @@ class CRM_Fintrxn_Configuration {
   }
 
   /**
-   * check whether the amount has changed.
-   * for AIVL it's easy: fee_amount/net_amount aren't used
-   */
-  public function isAmountChange($changes) {
-    return in_array('total_amount', $changes);
-  }
-
-  /**
-   * check whether the changes indicate that it's a newly created
-   * contribution
-   */
-  public function isNew($changes) {
-    return in_array('id', $changes);
-  }
-
-  /**
-   * Check whether the contribution should have transactions
-   * This should not be the case if it's in status 'pending' or 'in progress',
-   * and you shouldn't be able to later go back to that status either
-   * -> it's a simple check for status
-   */
-  public function hasTransactions($contribution) {
-    if (isset($contribution['contribution_status_id'])) {
-      $contribution_status_id = $contribution['contribution_status_id'];
-      // TODO: look up status
-      if (  $contribution_status_id == 2 /* pending */
-         || $contribution_status_id == 5 /* in progress */) {
-        return FALSE;
-
-      } else {
-        // even if we can't be sure, we have to assume:
-        return TRUE;
-      }
-    } else {
-      // no status ID? that's not good.
-      throw new Exception("Calling Configuration::hasTransactions with incomplete contribution. Maybe we've missed something here.");
-    }
-  }
-
-  /**
-   * calculate whether the changes (list of changed contribution attributes)
-   * are potentially relevant for rebooking.
-   */
-  public function isAccountRelevant($changes) {
-    return    in_array('campaign_id', $changes)
-           || in_array($this->getIncomingBankAccountKey(), $changes)
-           || in_array($this->getRefundBankAccountKey(), $changes);
-  }
-
-  /**
-   * get key of the custom field for the incoming bank account
-   */
-  public function getIncomingBankAccountKey() {
-    $field = $this->getContributionCustomField('Incoming_Bank_Account');
-    if ($field) {
-      return $field['id'];
-    } else {
-      return NULL;
-    }
-  }
-
-  /**
-   * get key of the custom field for the refund bank account
-   */
-  public function getRefundBankAccountKey() {
-    $field = $this->getContributionCustomField('Refund_Bank_Account');
-    if ($field) {
-      return "custom_{$field['id']}";
-    } else {
-      return NULL;
-    }
-  }
-
-  /**
    * get a list of the cocoa relevant fields
    */
   public function getCocoaFieldList() {
@@ -396,17 +354,53 @@ class CRM_Fintrxn_Configuration {
       'custom_' . $this->getCocoaCodeFollowCustomField('id'),
       'custom_' . $this->getCocoaCodeAcquisitionCustomField('id'),
       'custom_' . $this->getCocoaProfitLossCustomField('id'));
-
-    return implode(',', $fields);
+    return $fields;
   }
 
   /**
    * Method to set the account type codes for the COCOA financial accounts
    */
-  public function setAccountTypeCodes() {
+  private function setAccountTypeCodes() {
     $this->_campaignAccountTypeCode = 'AIVLCAMPAIGNCOCOA';
     $this->_ibanAccountTypeCode = 'AIVLINC';
+    $this->_plTypeCode = 'AIVLPL';
   }
+
+  /**
+   * Method to set the required contribution status properties
+   */
+  private function setContributionStatus() {
+    try {
+      $this->_cancelContributionStatus = civicrm_api3('OptionValue', 'getvalue', array(
+        'option_group_id' => 'contribution_status',
+        'name' => 'Cancelled',
+        'return' => 'value',
+      ));
+      $this->_refundContributionStatus = civicrm_api3('OptionValue', 'getvalue', array(
+        'option_group_id' => 'contribution_status',
+        'name' => 'Refunded',
+        'return' => 'value',
+      ));
+    } catch (CiviCRM_API3_Exception $ex) {
+    }
+  }
+
+  /**
+   * Method to determine if status has changed and is either cancel or refund
+   *
+   * @param $newData
+   * @return bool
+   */
+  public function isCancelOrRefund($newData) {
+    if (isset($newData['contribution_status_id'])) {
+      if ($newData['contribution_status_id'] == $this->getCancelContributionStatus()
+        || $newData['contribution_status_id'] == $this->getRefundContributionStatus()) {
+        return TRUE;
+      }
+    }
+    return FALSE;
+  }
+
 
   /**
    * Singleton method

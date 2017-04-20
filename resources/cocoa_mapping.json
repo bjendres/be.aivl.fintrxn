@@ -1,4 +1,198 @@
 {
-  "code":"cocoa_value",
-  "description":"cocoa_label"
+  "605": {
+    "description": "Total cash and cash equivalents",
+    "type": "AIVLINC"
+  },
+  "1299": {
+    "description":"Unallocated cold recruitment",
+    "type":"AIVLCAMPAIGNCOCOA"
+  },
+  "1399": {
+    "description":"Unallocated warm recruitment",
+    "type": "AIVLCAMPAIGNCOCOA"
+  },
+  "1499": {
+    "description":"Unallocated donor continuing",
+    "type": "AIVLCAMPAIGNCOCOA"
+  },
+  "1512": {
+    "description":"Legacies and bequests",
+    "type": "AIVLCAMPAIGNCOCOA"
+  },
+  "1514": {
+    "description":"Trusts and foundations",
+    "type": "AIVLCAMPAIGNCOCOA"
+  },
+  "1516": {
+    "description":"Major donor",
+    "type": "AIVLCAMPAIGNCOCOA"
+  },
+  "1538": {
+    "description":"Events including Challenge Events",
+    "type": "AIVLCAMPAIGNCOCOA"
+  },
+  "1540": {
+    "description":"Groups",
+    "type": "AIVLCAMPAIGNCOCOA"
+  },
+  "1544": {
+    "description":"Benefits in kind",
+    "type": "AIVLCAMPAIGNCOCOA"
+  },
+  "1545": {
+    "description":"Benefits in kind - services",
+    "type": "AIVLCAMPAIGNCOCOA"
+  },
+  "1550": {
+    "description":"Restricted income",
+    "type": "AIVLCAMPAIGNCOCOA"
+  },
+  "1551": {
+    "description":"Restricted income for relief",
+    "type": "AIVLCAMPAIGNCOCOA"
+  },
+  "1548": {
+    "description":"Other fundraising",
+    "type": "AIVLCAMPAIGNCOCOA"
+  },
+  "1612": {
+    "description":"Fundraising Management Team",
+    "type": "AIVLCAMPAIGNCOCOA"
+  },
+  "1614": {
+    "description":"Co-ordination and management",
+    "type": "AIVLCAMPAIGNCOCOA"
+  },
+  "1616": {
+    "description":"Market research",
+    "type": "AIVLCAMPAIGNCOCOA"
+  },
+  "1617": {
+    "description":"Data analysis",
+    "type": "AIVLCAMPAIGNCOCOA"
+  },
+  "1629": {
+    "description":"Unallocated fundraising support",
+    "type": "AIVLCAMPAIGNCOCOA"
+  },
+  "1742": {
+    "description":"Art for Amnesty",
+    "type": "AIVLCAMPAIGNCOCOA"
+  },
+  "1749": {
+    "description":"Unallocated merchandise",
+    "type": "AIVLCAMPAIGNCOCOA"
+  },
+  "1812": {
+    "description":"Other income",
+    "type": "AIVLCAMPAIGNCOCOA"
+  },
+  "1813": {
+    "description":"Interest income",
+    "type": "AIVLCAMPAIGNCOCOA"
+  },
+  "1905": {
+    "description":"Mainstreaming Gender and Diversity",
+    "type": "AIVLCAMPAIGNCOCOA"
+  },
+  "1910": {
+    "description":"Other growth and Mobilisation expense",
+    "type": "AIVLCAMPAIGNCOCOA"
+  },
+  "1911": {
+    "description":"One Digital Amnesty",
+    "type": "AIVLCAMPAIGNCOCOA"
+  },
+  "1912": {
+    "description":"Members, activists and groups support",
+    "type": "AIVLCAMPAIGNCOCOA"
+  },
+  "1913": {
+    "description":"Capacity building",
+    "type": "AIVLCAMPAIGNCOCOA"
+  },
+  "1959": {
+    "description":"Unallocated Global youth and student projects expense",
+    "type": "AIVLCAMPAIGNCOCOA"
+  },
+  "1993": {
+    "description":"Enabling activities - Goal 5",
+    "type": "AIVLCAMPAIGNCOCOA"
+  },
+  "1995": {
+    "description":"Exceptional items - Goal 5",
+    "type": "AIVLCAMPAIGNCOCOA"
+  },
+  "121": {
+    "description":"Regular Giving : Auto-payment",
+    "type": "AIVLPL"
+  },
+  "122": {
+    "description":"Regular Giving: Other payment method",
+    "type": "AIVLPL"
+  },
+  "123": {
+    "description":"Non-regular donation",
+    "type": "AIVLPL"
+  },
+  "124": {
+    "description":"Legacies and bequests",
+    "type": "AIVLPL"
+  },
+  "125": {
+    "description":"Trusts and foundations",
+    "type": "AIVLPL"
+  },
+  "126": {
+    "description":"Major donor incomes",
+    "type": "AIVLPL"
+  },
+  "127": {
+    "description":"Government funds (non grant income)s",
+    "type": "AIVLPL"
+  },
+  "131": {
+    "description":"Corporations",
+    "type": "AIVLPL"
+  },
+  "132": {
+    "description":"Groups",
+    "type": "AIVLPL"
+  },
+  "133": {
+    "description":"Benefits in kind",
+    "type": "AIVLPL"
+  },
+  "134": {
+    "description":"Benefits in kind - services",
+    "type": "AIVLPL"
+  },
+  "138": {
+    "description":"Other fundraising revenue",
+    "type": "AIVLPL"
+  },
+  "141": {
+    "description":"Merchandise revenue",
+    "type": "AIVLPL"
+  },
+  "142": {
+    "description":"Income from government grants",
+    "type": "AIVLPL"
+  },
+  "143": {
+    "description":"Interest income",
+    "type": "AIVLPL"
+  },
+  "144": {
+    "description":"Income from events",
+    "type": "AIVLPL"
+  },
+  "148": {
+    "description":"Other revenue",
+    "type": "AIVLPL"
+  },
+  "199": {
+    "description":"Unallocated revenue",
+    "type": "AIVLPL"
+  }
 }

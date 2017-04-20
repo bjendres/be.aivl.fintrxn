@@ -9,9 +9,9 @@
  * @see http://wiki.civicrm.org/confluence/display/CRMDOC/API+Architecture+Standards
  */
 function _civicrm_api3_cocoa_Load_spec(&$spec) {
-  $spec['file_name'] = array(
-    'name' => 'file_name',
-    'title' => 'file_name',
+  $spec['clean_existing'] = array(
+    'name' => 'clean_existing',
+    'title' => 'clean_existing',
     'type' => CRM_Utils_Type::T_STRING,
     'api.required' => 1
   );
@@ -29,34 +29,25 @@ function _civicrm_api3_cocoa_Load_spec(&$spec) {
  */
 function civicrm_api3_cocoa_Load($params) {
   $returnValues = array();
+  $cocoaCode = new CRM_Fintrxn_CocoaCode();
+  // clean existing option values if specified
+  if ($params['clean_existing'] == "Y" || $params['clean_existing'] == "J") {
+    $cocoaCode->cleanOptionValues();
+    $returnValues[] = "Existing option groups aivl_cocoa_cost_centre and aivl_cocoa_profit_loss emptied before loading";
+  }
+  $config = CRM_Fintrxn_Configuration::singleton();
+  $jsonFile = $config->getResourcesPath().'cocoa_mapping.json';
   // check file exists
-  try {
-    $setting = civicrm_api3('Setting', 'get', array('return' => "uploadDir"));
-    $uploadFolder = $setting['values'][$setting['id']]['uploadDir'];
-    // exception if not folder
-    if (!is_dir($uploadFolder)) {
-      throw new API_Exception(ts('The upload Dir ').$uploadFolder.ts(' is not a valid folder or you have no access rights.'), 1000);
-    }
-    // only if file exists
-    $fileName = $uploadFolder.$params['file_name'];
-    // initialize logger and load mapping for cocoa import
-    $logger = new CRM_Fintrxn_Logger('cocoa_load');
-    $logger->logMessage('Info','Starting to load COCOA codes from file '.$fileName);
-    $mapping = CRM_Fintrxn_CocoaCode::getLoadMapping();
-    // process csv file with class from Streetimport, exception if not found
-    if (class_exists('CRM_Streetimport_FileCsvDataSource')) {
-      $dataSource = new CRM_Streetimport_FileCsvDataSource($fileName, $logger, $mapping);
-      $dataSource->reset();
-      $cocoaCode = new CRM_Fintrxn_CocoaCode();
-      while ($dataSource->hasNext()) {
-        $cocoaCode->load($dataSource->next(), $logger);
-      }
-    } else {
-      throw new API_Exception(ts('Could not find class CRM_Streetimport_FileCsvDataSource, this is part of the extension be.aivl.streetimport. 
-        You probably have either disabled or uninstalled this extension. Contact your system administrator'), 1001);
-    }
-  } catch (CiviCRM_API3_Exception $ex) {
-    throw new API_Exception(ts('Could not retrieve the setting for uploadDir in ').__METHOD__, 1002);
+  if (!file_exists($jsonFile)) {
+    return civicrm_api3_create_error('Could not find the required file '.$jsonFile);
+  }
+  // read json file
+  $cocoaJson = file_get_contents($jsonFile);
+  $cocoaMappings = json_decode($cocoaJson, true);
+  foreach ($cocoaMappings as $cocoaId => $cocoaData) {
+    // process based on type
+    $cocoaCode->load($cocoaId, $cocoaData);
+    $returnValues[] = "Cocoa code of type ".$cocoaData['type']." loaded";
   }
   return civicrm_api3_create_success($returnValues, $params, 'Cocoa', 'Load');
 }

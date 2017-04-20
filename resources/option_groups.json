@@ -1,29 +1,15 @@
 {
-  "aivl_cocoa_codes":{
-    "name":"aivl_cocoa_codes",
+  "aivl_cocoa_cost_centre":{
+    "name":"aivl_cocoa_cost_centre",
     "title":"Amnesty COCOA cost centres",
     "is_active":1,
-    "is_reserved":1,
-    "option_values":{
-      "cocoa_2222":{
-        "name":"cocoa_2222",
-        "value":"2222",
-        "label":"2222",
-        "is_active":1
-      },
-      "cocoa_2223":{
-        "name":"cocoa_2223",
-        "value":"2223",
-        "label":"2223",
-        "is_active":1
-      },
-      "cocoa_2224":{
-        "name":"cocoa_2224",
-        "value":"2224",
-        "label":"2224",
-        "is_active":1
-      }
-    }
+    "is_reserved":1
+  },
+  "aivl_cocoa_profit_loss":{
+    "name":"aivl_cocoa_profit_loss",
+    "title":"Amnesty COCOA profit loss accounts",
+    "is_active":1,
+    "is_reserved":1
   },
   "cocoa_acquisition_year":{
     "name":"cocoa_acquisition_year",
