@@ -84,7 +84,6 @@ class CRM_Fintrxn_Generator {
    * @param $objectRef
    */
   public static function generate($operation, $contributionId, $objectRef) {
-    // todo if the class has not initialized itself, error should be logged?
     if (self::$_singleton != NULL) {
       $newValues = array();
       if ($objectRef) {
@@ -95,7 +94,6 @@ class CRM_Fintrxn_Generator {
           }
         }
       }
-      // todo validate prior to migration and show status error on exception
       self::$_singleton->generateFinancialTrxns($operation, $contributionId, $newValues);
     }
   }
@@ -367,14 +365,14 @@ class CRM_Fintrxn_Generator {
    */
   protected function getFinancialAccountForBankAccount($bankAccount) {
     if (empty($bankAccount)) {
-      // todo get default account from configuration
+      return $this->_config->getDefaultCocoaFinancialAccountId();
     }
     if (!empty($bankAccount)) {
       // lookup account id
       $cocoaCode = new CRM_Fintrxn_CocoaCode();
       $account = $cocoaCode->findAccountWithName($bankAccount, $this->_config->getIbanAccountTypeCode());
       if (empty($account)) {
-        throw new Exception("INC financial account for IBAN '{$bankAccount}' not found.", 1);
+        return $this->_config->getDefaultCocoaFinancialAccountId();
       } else {
         return $account['id'];
       }
@@ -390,8 +388,7 @@ class CRM_Fintrxn_Generator {
    */
   protected function getFinancialAccountForCampaign($campaignId, $receiveDate) {
     if (empty($campaignId)) {
-      error_log("FINTRXN ERROR: contribution has no campaign!");
-      $accountCode = '0000';
+      return $this->_config->getDefaultCocoaFinancialAccountId();
     } else {
       // get the COCOA codes from the campaign
       $campaign = $this->cachedLookup('Campaign', array(

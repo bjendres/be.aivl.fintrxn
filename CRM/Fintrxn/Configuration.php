@@ -34,6 +34,9 @@ class CRM_Fintrxn_Configuration {
   private $_plTypeCode = NULL;
   private $_cancelContributionStatus = NULL;
   private $_refundContributionStatus = NULL;
+  private $_filterAcquisitionYear = NULL;
+  private $_filterFollowingYears = NULL;
+  private $_defaultCocoaFinancialAccountId = NULL;
 
   /**
    * CRM_Fintrxn_Configuration constructor.
@@ -45,6 +48,9 @@ class CRM_Fintrxn_Configuration {
     $this->setResourcesPath();
     $this->setAccountTypeCodes();
     $this->setContributionStatus();
+    $this->setDefaultCocoaFinancialAccount();
+    $this->_filterAcquisitionYear = 1;
+    $this->_filterFollowingYears = 2;
     try {
       $this->_cocoaCostCentreOptionGroupId = civicrm_api3('OptionGroup', 'getvalue', array(
         'name' => 'aivl_cocoa_cost_centre',
@@ -73,6 +79,33 @@ class CRM_Fintrxn_Configuration {
       throw new Exception(ts('Could not find campaign type with name Fundraising campaign in').' '.__METHOD__.', '.
       ts('contact your system administrator .Error from API OptionValue getvalue').': '.$ex->getMessage());
     }
+  }
+
+  /**
+   * Getter for filter for default cocoa financial account
+   *
+   * @return int|null
+   */
+  public function getDefaultCocoaFinancialAccountId() {
+    return $this->_defaultCocoaFinancialAccountId;
+  }
+
+  /**
+   * Getter for filter for following years option values
+   *
+   * @return int|null
+   */
+  public function getFilterFollowingYears() {
+    return $this->_filterFollowingYears;
+  }
+
+  /**
+   * Getter for filter for acquisition year option values
+   *
+   * @return int|null
+   */
+  public function getFilterAcquisitionYear() {
+    return $this->_filterAcquisitionYear;
   }
 
   /**
@@ -364,6 +397,32 @@ class CRM_Fintrxn_Configuration {
     $this->_campaignAccountTypeCode = 'AIVLCAMPAIGNCOCOA';
     $this->_ibanAccountTypeCode = 'AIVLINC';
     $this->_plTypeCode = 'AIVLPL';
+  }
+
+  /**
+   * Method to set or create default financial account for campaigns
+   */
+  private function setDefaultCocoaFinancialAccount() {
+    $defaultFinancialAccountName = 'aivl_cocoa_default';
+    $accountTypeCode = 'AIVLDEFAULT';
+    try {
+      $this->_defaultCocoaFinancialAccountId = civicrm_api3('FinancialAccount', 'getvalue', array(
+        'name' => $defaultFinancialAccountName,
+        'account_type_code' => $accountTypeCode,
+        'return' => 'id',
+      ));
+    }
+    catch (CiviCRM_API3_Exception $ex) {
+      $financialAccount = civicrm_api3('FinancialAccount', 'create', array(
+        'name' => $defaultFinancialAccountName,
+        'account_type_code' => $accountTypeCode,
+        'description' => 'Amnesty International Vlaanderen default COCOA code (niet aankomen!)',
+        'is_reserved' => 1,
+        'is_active' => 1,
+        'accounting_code'=> 99999999
+      ));
+      $this->_defaultCocoaFinancialAccountId = $financialAccount['id'];
+    }
   }
 
   /**

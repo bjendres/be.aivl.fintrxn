@@ -9,6 +9,63 @@
 +--------------------------------------------------------*/
 
 require_once 'fintrxn.civix.php';
+
+/**
+ * Implements hook_civicrm_validateForm
+ *
+ * @link https://docs.civicrm.org/dev/en/master/hooks/hook_civicrm_validateForm/
+ */
+function fintrxn_civicrm_validateForm($formName, &$fields, &$files, &$form, &$errors) {
+  if ($formName == "CRM_Campaign_Form_Campaign") {
+    // process validateForm for Campaign
+    CRM_Fintrxn_Campaign::validateForm($fields, $errors);
+  }
+}
+
+/**
+ * Implements hook_civicrm_buildForm
+ *
+ * @link https://docs.civicrm.org/dev/en/master/hooks/hook_civicrm_buildForm/
+ */
+function fintrxn_civicrm_buildForm($formName, &$form) {
+  if ($formName == 'CRM_Campaign_Form_Campaign') {
+    // process buildForm hook for Campaign
+    CRM_Fintrxn_Campaign::buildForm($form);
+  }
+}
+
+/**
+ * Implements hook_civicrm_navigationMenu
+ *
+ * @link https://docs.civicrm.org/dev/en/master/hooks/hook_civicrm_navigationMenu/
+ */
+function fintrxn_civicrm_navigationMenu(&$params) {
+  // check if required methods are available
+  if (!method_exists('CRM_Streetimport_Utils', 'createUniqueNavID') ||
+    !method_exists('CRM_Streetimport_Utils', 'addNavigationMenuEntry')) {
+    error_log('Could not find required methods from CRM_Streetimport_Utils to create menu items');
+  } else {
+    //  Get the maximum key of $params
+    $campaignMenuId = 0;
+    foreach ($params as $key => $value) {
+      if ($value['attributes']['name'] == 'Campaigns') {
+        $campaignMenuId = $key;
+      }
+    }
+    $newMenu = array(
+      'label' => ts('Default Campaign Cocoa Codes', array('domain' => 'be.aivl.fintrxn')),
+      'name' => 'Default Campaign Cocoa Codes',
+      'url' => 'civicrm/fintrxn/form/cocoacode',
+      'permission' => 'administer CiviCRM',
+      'operator' => NULL,
+      'parentID' => $campaignMenuId,
+      'navID' => CRM_Streetimport_Utils::createUniqueNavID($params[$campaignMenuId]['child']),
+      'active' => 1
+    );
+    CRM_Streetimport_Utils::addNavigationMenuEntry($params[$campaignMenuId], $newMenu);
+  }
+}
+
 /**
  * Implementation of hook civicrm_custom
  *
@@ -16,7 +73,7 @@ require_once 'fintrxn.civix.php';
  * @param $groupID
  * @param $entityID
  * @param $params
- * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_custom
+ * @link https://docs.civicrm.org/dev/en/master/hooks/hook_civicrm_custom/
  */
 function fintrxn_civicrm_custom($op, $groupID, $entityID, &$params) {
   // process custom hook for cocoa codes
