@@ -16,10 +16,15 @@ require_once 'fintrxn.civix.php';
  * @link https://docs.civicrm.org/dev/en/master/hooks/hook_civicrm_validateForm/
  */
 function fintrxn_civicrm_validateForm($formName, &$fields, &$files, &$form, &$errors) {
-  if ($formName == "CRM_Campaign_Form_Campaign") {
-    // process validateForm for Campaign
-    CRM_Fintrxn_Campaign::validateForm($fields, $errors);
+  switch ($formName) {
+    case "CRM_Campaign_Form_Campaign":
+      CRM_Fintrxn_Campaign::validateForm($fields, $errors);
+      break;
+    case "CRM_Financial_Form_Export":
+      CRM_Fintrxn_Batch::validateForm($form, $errors);
+      break;
   }
+  return;
 }
 
 /**
@@ -28,6 +33,7 @@ function fintrxn_civicrm_validateForm($formName, &$fields, &$files, &$form, &$er
  * @link https://docs.civicrm.org/dev/en/master/hooks/hook_civicrm_buildForm/
  */
 function fintrxn_civicrm_buildForm($formName, &$form) {
+  CRM_Core_Error::debug('formName', $formName);
   if ($formName == 'CRM_Campaign_Form_Campaign') {
     // process buildForm hook for Campaign
     CRM_Fintrxn_Campaign::buildForm($form);

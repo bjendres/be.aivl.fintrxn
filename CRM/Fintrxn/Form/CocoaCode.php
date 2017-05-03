@@ -117,7 +117,7 @@ class CRM_Fintrxn_Form_CocoaCode extends CRM_Core_Form {
       $currentDefault = $this->getCurrentDefaultCocoa($fieldName);
       if (!empty($currentDefault)) {
         // update to is_default = 0 if not the same as the one selected
-        if ($currentDefault['value'] != $this->_submitValues[$fieldName]) {
+        if (!isset($currentDefault['value']) || ($currentDefault['value'] != $this->_submitValues[$fieldName])) {
           try {
             civicrm_api3('OptionValue', 'create', array(
               'id' => $currentDefault['id'],
@@ -157,7 +157,7 @@ class CRM_Fintrxn_Form_CocoaCode extends CRM_Core_Form {
       }
     }
     catch (CiviCRM_API3_Exception $ex) {
-      return array();
+      return NULL;
     }
   }
 
@@ -181,31 +181,36 @@ class CRM_Fintrxn_Form_CocoaCode extends CRM_Core_Form {
           'value' => $defaultCocoaParams['value'],
           'return' => 'id',
         ));
+        $filter = 0;
         break;
       case 'default_acquisition_year':
         $defaultCocoaParams['option_group_id'] = $config->getCocoaCostCentreOptionGroupId();
         $currentOptionValueId = civicrm_api3('OptionValue', 'getvalue', array(
           'option_group_id' => $defaultCocoaParams['option_group_id'],
-          'filter' => $config->getFilterAcquisitionYear(),
           'value' => $defaultCocoaParams['value'],
           'return' => 'id',
         ));
+        $filter = $config->getFilterAcquisitionYear();
         break;
       case 'default_following_years':
         $defaultCocoaParams['option_group_id'] = $config->getCocoaCostCentreOptionGroupId();
-        $currentOptionValue = civicrm_api3('OptionValue', 'getvalue', array(
+        $currentOptionValueId = civicrm_api3('OptionValue', 'getvalue', array(
           'option_group_id' => $defaultCocoaParams['option_group_id'],
-          'filter' => $config->getFilterFollowingYears(),
           'value' => $defaultCocoaParams['value'],
           'return' => 'id',
         ));
+        $filter = $config->getFilterFollowingYears();
+        break;
+      default:
+        $filter = 0;
         break;
     }
     if (!empty($currentOptionValueId)) {
-      $sql = 'UPDATE civicrm_option_value SET is_default = %1, is_active = %1 WHERE id = %2';
+      $sql = 'UPDATE civicrm_option_value SET filter = %1, is_default = %2, is_active = %2 WHERE id = %3';
       CRM_Core_DAO::executeQuery($sql, array(
-        1 => array(1, 'Integer',),
-        2 => array($currentOptionValueId, 'Integer',),
+        1 => array($filter, 'Integer',),
+        2 => array(1, 'Integer',),
+        3 => array($currentOptionValueId, 'Integer',),
       ));
     }
   }

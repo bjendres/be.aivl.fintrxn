@@ -1,6 +1,6 @@
 <?php
 /**
- * Class for specific AIVL COCOA Code processing
+ * Class for specific AIVL Campaign processing
  *
  * @author Erik Hommel (CiviCooP) <erik.hommel@civicoop.org>
  * @date 20 April 2017
@@ -16,15 +16,17 @@ class CRM_Fintrxn_Campaign {
   public static function validateForm($fields, &$errors) {
     $config = CRM_Fintrxn_Configuration::singleton();
     $mandatories = array(
-      'custom_'.$config->getCocoaProfitLossCustomField('id'),
-      'custom_'.$config->getCocoaCodeAcquisitionCustomField('id'),
-      'custom_'.$config->getCocoaCodeFollowCustomField('id'),);
+      'custom_'.$config->getCocoaProfitLossCustomField('id').'_-1',
+      'custom_'.$config->getCocoaCodeAcquisitionCustomField('id').'_-1',
+      'custom_'.$config->getCocoaCodeFollowCustomField('id').'_-1',);
     foreach ($mandatories as $mandatory) {
       if (!isset($fields[$mandatory]) || empty($fields[$mandatory])) {
         $errors[$mandatory] = ts('This is a required field, you can not leave it empty!');
       }
     }
+    return;
   }
+
   /**
    * Method to process buildForm hook
    *
@@ -45,7 +47,6 @@ class CRM_Fintrxn_Campaign {
       }
     }
   }
-
 
   /**
    * Method to get the custom field ids and defaults for cocoa codes

@@ -33,10 +33,9 @@ class CRM_Fintrxn_Utils {
   public static function getDefaultProfitLossCocoaCode() {
     $config = CRM_Fintrxn_Configuration::singleton();
     try {
-      return civicrm_api3('OptionValue', 'getvalue', array(
+      return civicrm_api3('OptionValue', 'getsingle', array(
         'option_group_id' => $config->getCocoaProfitLossOptionGroupId(),
         'is_default' => 1,
-        'return' => 'value',
       ));
     }
     catch (CiviCRM_API3_Exception $ex) {
@@ -51,11 +50,10 @@ class CRM_Fintrxn_Utils {
   public static function getDefaultAcquisitionYearCocoaCode() {
     $config = CRM_Fintrxn_Configuration::singleton();
     try {
-      return civicrm_api3('OptionValue', 'getvalue', array(
+      return civicrm_api3('OptionValue', 'getsingle', array(
         'option_group_id' => $config->getCocoaCostCentreOptionGroupId(),
         'filter' => $config->getFilterAcquisitionYear(),
         'is_default' => 1,
-        'return' => 'value',
       ));
     }
     catch (CiviCRM_API3_Exception $ex) {
@@ -69,16 +67,33 @@ class CRM_Fintrxn_Utils {
   public static function getDefaultFollowingYearsCocoaCode() {
     $config = CRM_Fintrxn_Configuration::singleton();
     try {
-      return civicrm_api3('OptionValue', 'getvalue', array(
+      return civicrm_api3('OptionValue', 'getsingle', array(
         'option_group_id' => $config->getCocoaCostCentreOptionGroupId(),
         'filter' => $config->getFilterFollowingYears(),
         'is_default' => 1,
-        'return' => 'value',
       ));
     }
     catch (CiviCRM_API3_Exception $ex) {
       return FALSE;
     }
+  }
+
+  /**
+   * Method to check if the financial account is the default Cocoa Account
+   * (which is only used when no account could be found for campaign or bank account when
+   * generating the financial transaction)
+   *
+   * @param $financialAccountId
+   * @return bool
+   */
+  public static function isDefaultAccount($financialAccountId) {
+    if (!empty($financialAccountId)) {
+      $config = CRM_Fintrxn_Configuration::singleton();
+      if ($financialAccountId == $config->getDefaultCocoaFinancialAccountId()) {
+        return TRUE;
+      }
+    }
+    return FALSE;
   }
 
 }

@@ -400,7 +400,14 @@ class CRM_Fintrxn_Generator {
     $cocoaCode = new CRM_Fintrxn_CocoaCode();
     $account = $cocoaCode->findAccountWithAccountCode($accountCode, $this->_config->getCampaignAccountTypeCode());
     if (empty($account['id'])) {
-      $cocoaCode->createFinancialAccount($accountCode, $this->_config->getCampaignAccountTypeCode());
+      $cocoaCode->createFinancialAccount(array(
+        'name' => 'COCAO Code '.$accountCode,
+        'description' => 'AIVL COCOA code '.$accountCode.' (niet aankomen!)',
+        'accounting_code' => $accountCode,
+        'account_type_code' => $this->_config->getCampaignAccountTypeCode(),
+        'is_reserved' => 1,
+        'is_active' => 1,
+      ));
       $account = $cocoaCode->findAccountWithAccountCode($accountCode, $this->_config->getCampaignAccountTypeCode());
     }
     return $account['id'];
