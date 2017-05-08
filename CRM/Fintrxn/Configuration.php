@@ -32,8 +32,12 @@ class CRM_Fintrxn_Configuration {
   private $_campaignAccountTypeCode = NULL;
   private $_ibanAccountTypeCode = NULL;
   private $_plTypeCode = NULL;
-  private $_cancelContributionStatus = NULL;
-  private $_refundContributionStatus = NULL;
+  private $_cancelContributionStatusId = NULL;
+  private $_completedContributionStatusId = NULL;
+  private $_pendingContributionStatusId = NULL;
+  private $_refundContributionStatusId = NULL;
+  private $_failedContributionStatusId = NULL;
+  private $_validContributionStatus = array();
   private $_filterAcquisitionYear = NULL;
   private $_filterFollowingYears = NULL;
   private $_defaultCocoaFinancialAccountId = NULL;
@@ -109,12 +113,48 @@ class CRM_Fintrxn_Configuration {
   }
 
   /**
+   * Getter for pending contribution status
+   *
+   * @return array
+   */
+  public function getPendingContributionStatusId() {
+    return $this->_pendingContributionStatusId;
+  }
+
+  /**
+   * Getter for failed contribution status
+   *
+   * @return array
+   */
+  public function getFailedContributionStatusId() {
+    return $this->_failedContributionStatusId;
+  }
+
+  /**
+   * Getter for valid contribution status for fintrxn processing
+   *
+   * @return array
+   */
+  public function getValidContributionStatus() {
+    return $this->_validContributionStatus;
+  }
+
+  /**
+   * Getter for completed contribution status
+   *
+   * @return array
+   */
+  public function getCompletedContributionStatusId() {
+    return $this->_completedContributionStatusId;
+  }
+
+  /**
    * Getter for cancelled contribution status
    *
    * @return array
    */
-  public function getCancelContributionStatus() {
-    return $this->_cancelContributionStatus;
+  public function getCancelContributionStatusId() {
+    return $this->_cancelContributionStatusId;
   }
 
   /**
@@ -122,8 +162,8 @@ class CRM_Fintrxn_Configuration {
    *
    * @return array
    */
-  public function getRefundContributionStatus() {
-    return $this->_refundContributionStatus;
+  public function getRefundContributionStatusId() {
+    return $this->_refundContributionStatusId;
   }
 
   /**
@@ -430,17 +470,35 @@ class CRM_Fintrxn_Configuration {
    */
   private function setContributionStatus() {
     try {
-      $this->_cancelContributionStatus = civicrm_api3('OptionValue', 'getvalue', array(
+      $optionValues = civicrm_api3('OptionValue', 'get', array(
         'option_group_id' => 'contribution_status',
-        'name' => 'Cancelled',
-        'return' => 'value',
+        'options' => array('limit' => 0),
       ));
-      $this->_refundContributionStatus = civicrm_api3('OptionValue', 'getvalue', array(
-        'option_group_id' => 'contribution_status',
-        'name' => 'Refunded',
-        'return' => 'value',
-      ));
-    } catch (CiviCRM_API3_Exception $ex) {
+      foreach ($optionValues['values'] as $optionValue) {
+        switch ($optionValue['name']) {
+          case 'Cancelled':
+            $this->_cancelContributionStatusId = $optionValue['value'];
+            $this->_validContributionStatus[] = $optionValue['value'];
+            break;
+          case 'Refunded':
+            $this->_refundContributionStatusId = $optionValue['value'];
+            $this->_validContributionStatus[] = $optionValue['value'];
+            break;
+          case 'Completed':
+            $this->_completedContributionStatusId = $optionValue['value'];
+            $this->_validContributionStatus[] = $optionValue['value'];
+            break;
+          case 'Pending':
+            $this->_pendingContributionStatusId = $optionValue['value'];
+            break;
+          case 'Failed':
+            $this->_failedContributionStatusId = $optionValue['value'];
+            $this->_validContributionStatus[] = $optionValue['value'];
+            break;
+        }
+      }
+    }
+    catch (CiviCRM_API3_Exception $ex) {
     }
   }
 
@@ -452,8 +510,9 @@ class CRM_Fintrxn_Configuration {
    */
   public function isCancelOrRefund($newData) {
     if (isset($newData['contribution_status_id'])) {
-      if ($newData['contribution_status_id'] == $this->getCancelContributionStatus()
-        || $newData['contribution_status_id'] == $this->getRefundContributionStatus()) {
+      if ($newData['contribution_status_id'] == $this->getCancelContributionStatusId()
+        || $newData['contribution_status_id'] == $this->getRefundContributionStatusId()
+        || $newData['contribution_status_id'] == $this->getFailedContributionStatusId()) {
         return TRUE;
       }
     }

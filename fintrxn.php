@@ -23,6 +23,9 @@ function fintrxn_civicrm_validateForm($formName, &$fields, &$files, &$form, &$er
     case "CRM_Financial_Form_Export":
       CRM_Fintrxn_Batch::validateForm($form, $errors);
       break;
+    case "CRM_Contribute_Form_Contribution":
+      CRM_Fintrxn_Contribution::validateForm($fields, $errors);
+      break;
   }
   return;
 }
@@ -33,7 +36,6 @@ function fintrxn_civicrm_validateForm($formName, &$fields, &$files, &$form, &$er
  * @link https://docs.civicrm.org/dev/en/master/hooks/hook_civicrm_buildForm/
  */
 function fintrxn_civicrm_buildForm($formName, &$form) {
-  CRM_Core_Error::debug('formName', $formName);
   if ($formName == 'CRM_Campaign_Form_Campaign') {
     // process buildForm hook for Campaign
     CRM_Fintrxn_Campaign::buildForm($form);
@@ -101,6 +103,7 @@ function fintrxn_civicrm_pre($op, $objectName, $id, &$params) {
 function fintrxn_civicrm_post($op, $objectName, $objectId, &$objectRef) {
   if ($objectName == 'Contribution') {
     CRM_Fintrxn_Generator::generate($op, $objectId, $objectRef);
+    CRM_Fintrxn_FinancialTransaction::post($op, $objectId);
   }
 }
 

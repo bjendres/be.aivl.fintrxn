@@ -84,17 +84,20 @@ class CRM_Fintrxn_Generator {
    * @param $objectRef
    */
   public static function generate($operation, $contributionId, $objectRef) {
-    if (self::$_singleton != NULL) {
-      $newValues = array();
-      if ($objectRef) {
-        // convert ref object into array newValues
-        foreach ($objectRef as $key => $value) {
-          if (substr($key, 0, 1) != '_') {
-            $newValues[$key] = $value;
+    // only if is_test == 0
+    if (empty($objectRef->is_test)) {
+      if (self::$_singleton != NULL) {
+        $newValues = array();
+        if ($objectRef) {
+          // convert ref object into array newValues
+          foreach ($objectRef as $key => $value) {
+            if (substr($key, 0, 1) != '_') {
+              $newValues[$key] = $value;
+            }
           }
         }
+        self::$_singleton->generateFinancialTrxns($operation, $contributionId, $newValues);
       }
-      self::$_singleton->generateFinancialTrxns($operation, $contributionId, $newValues);
     }
   }
 
@@ -118,19 +121,25 @@ class CRM_Fintrxn_Generator {
         .", this shouldn't happen!");
       return;
     }
-
     if ($operation != 'delete') {
-      $this->calculateChanges($newValues);
-      // if operation is create, add new fin trxn
-      if ($operation == 'create') {
-        $this->processNewContribution();
+      // when coming from API contribution_status_id can be empty. If this is the case, initialize
+      if (!isset($newValues['contribution_status_id'])) {
+        $newValues['contribution_status_id'] = $this->initializeContributionStatusId($newValues);
       }
-      // if operation is edit, process cancel, refund or change
-      if ($operation == 'edit') {
-        if ($this->_config->isCancelOrRefund($this->_newContributionData)) {
-          $this->processCancelRefundContribution();
-        } else {
-          $this->processChangedContribution();
+      // ignore if contribution status is NOT a valid one for processing financial transactions
+      if (in_array($newValues['contribution_status_id'], $this->_config->getValidContributionStatus())) {
+        $this->calculateChanges($newValues);
+        // if operation is create, add new fin trxn
+        if ($operation == 'create') {
+          $this->processNewContribution();
+        }
+        // if operation is edit and something changed, process cancel, failed, refund or change
+        if ($operation == 'edit' && !empty($this->_changes)) {
+          if ($this->_config->isCancelOrRefund($this->_newContributionData)) {
+            $this->processCancelRefundContribution();
+          } else {
+            $this->processChangedContribution();
+          }
         }
       }
     }
@@ -147,11 +156,13 @@ class CRM_Fintrxn_Generator {
     $this->_oldContributionData['total_amount'] = -$this->_oldContributionData['total_amount'];
     $this->_oldContributionData['net_amount'] = -$this->_oldContributionData['net_amount'];
     $this->_oldContributionData['fee_amount'] = -$this->_oldContributionData['fee_amount'];
-    $refundCustomField = 'custom_'.$this->_config->getRefundAccountCustomField();
+    $refundCustomField = 'custom_'.$this->_config->getRefundAccountCustomField('id');
     $trxData = $this->createTransactionData($this->_oldContributionData);
     $trxData['from_financial_account_id'] = $this->getFinancialAccountForCampaign($this->_oldContributionData['campaign_id'],
       $this->_oldContributionData['receive_date']);
     $trxData['to_financial_account_id'] = $this->getFinancialAccountForBankAccount($this->_oldContributionData[$refundCustomField]);
+    // use new contribution status
+    $trxData['contribution_status_id'] = $this->_newContributionData['contribution_status_id'];
     $this->writeTransaction($trxData);
   }
 
@@ -161,18 +172,20 @@ class CRM_Fintrxn_Generator {
    * - to financial account is the account based on the campaign of the contribution
    */
   private function processChangedContribution() {
-    // reverse transaction for old contribution
-    $this->_oldContributionData['total_amount'] = -$this->_oldContributionData['total_amount'];
-    $this->_oldContributionData['net_amount'] = -$this->_oldContributionData['net_amount'];
-    $this->_oldContributionData['fee_amount'] = -$this->_oldContributionData['fee_amount'];
-    $incomingCustomField = 'custom_'.$this->_config->getIncomingAccountCustomField();
-    $oldTrxData = $this->createTransactionData($this->_oldContributionData);
-    $oldTrxData['from_financial_account_id'] = $this->getFinancialAccountForBankAccount($this->_oldContributionData[$incomingCustomField]);
-    $oldTrxData['to_financial_account_id'] = $this->getFinancialAccountForCampaign($this->_oldContributionData['campaign_id'],
-      $this->_oldContributionData['receive_date']);
-    $this->writeTransaction($oldTrxData);
+    $incomingCustomField = 'custom_' . $this->_config->getIncomingAccountCustomField();
+    // reverse transaction for old contribution if required
+    if ($this->isReversalRequired() == TRUE) {
+      $this->_oldContributionData['total_amount'] = -$this->_oldContributionData['total_amount'];
+      $this->_oldContributionData['net_amount'] = -$this->_oldContributionData['net_amount'];
+      $this->_oldContributionData['fee_amount'] = -$this->_oldContributionData['fee_amount'];
+      $oldTrxData = $this->createTransactionData($this->_oldContributionData, new DateTime($this->_oldContributionData['receive_date']));
+      $oldTrxData['from_financial_account_id'] = $this->getFinancialAccountForBankAccount($this->_oldContributionData[$incomingCustomField]);
+      $oldTrxData['to_financial_account_id'] = $this->getFinancialAccountForCampaign($this->_oldContributionData['campaign_id'],
+        $this->_oldContributionData['receive_date']);
+      $this->writeTransaction($oldTrxData);
+    }
     // then create new transaction
-    $newTrxData = $this->createTransactionData($this->_newContributionData);
+    $newTrxData = $this->createTransactionData($this->_newContributionData, $this->setDateForEdit());
     $newTrxData['from_financial_account_id'] = $this->getFinancialAccountForBankAccount($this->_newContributionData[$incomingCustomField]);
     $newTrxData['to_financial_account_id'] = $this->getFinancialAccountForCampaign($this->_newContributionData['campaign_id'],
       $this->_newContributionData['receive_date']);
@@ -200,15 +213,14 @@ class CRM_Fintrxn_Generator {
    *       to_financial_account_id
    *
    * @param $contributionData
-   * @param $date
    * @return array
    */
   protected function createTransactionData($contributionData, $date = NULL) {
-    if ($date === NULL) {
-      $date = date('YmdHis');
+    if (!$date) {
+      $date = new DateTime();
     }
     return array(
-      'trxn_date'             => $date,
+      'trxn_date'             => $date->format('YmdHis'),
       'total_amount'          => CRM_Utils_Array::value('total_amount', $contributionData),
       'fee_amount'            => CRM_Utils_Array::value('fee_amount', $contributionData),
       'net_amount'            => CRM_Utils_Array::value('net_amount', $contributionData, CRM_Utils_Array::value('total_amount', $contributionData)),
@@ -219,8 +231,26 @@ class CRM_Fintrxn_Generator {
       'payment_processor_id'  => CRM_Utils_Array::value('payment_processor_id', $contributionData),
       'payment_instrument_id' => CRM_Utils_Array::value('payment_instrument_id', $contributionData),
       'check_number'          => 'AIVL fintrxn',
-      //'check_number'          => CRM_Utils_Array::value('check_number', $contributionData),
     );
+  }
+
+  /**
+   * Method to set the transaction date for edit operation
+   *
+   * @return DateTime
+   */
+  protected function setDateForEdit() {
+    if ($this->_newContributionData['contribution_status_id'] == $this->_config->getCompletedContributionStatusId() &&
+      $this->_oldContributionData['contribution_status_id'] == $this->_config->getPendingContributionStatusId()) {
+      return new DateTime($this->_newContributionData['receive_date']);
+    }
+    if ($this->_oldContributionData['is_test'] == 1 && $this->_newContributionData['is_test'] == 0) {
+      return new DateTime($this->_newContributionData['receive_date']);
+    }
+    if ($this->_oldContributionData['receive_date'] != $this->_newContributionData['receive_date']) {
+      return new DateTime($this->_newContributionData['receive_date']);
+    }
+    return new DateTime();
   }
 
   /**
@@ -260,6 +290,8 @@ class CRM_Fintrxn_Generator {
   /**
    * populate the $this->changes data
    * and fill the $this->new_contribution_data
+   *
+   * @param $updatedValues
    */
   protected function calculateChanges($updatedValues) {
     // again....don't even ask
@@ -330,7 +362,9 @@ class CRM_Fintrxn_Generator {
 
   private function isValueChanged($key) {
     if (!isset($this->_oldContributionData[$key])) {
-      return TRUE;
+      if (!empty($this->_newContributionData[$key]) && $this->_newContributionData[$key] != 'null') {
+        return TRUE;
+      }
     }
     // not changed if both values are empty
     if (empty($this->_newContributionData[$key]) && empty($this->_oldContributionData[$key])) {
@@ -411,6 +445,44 @@ class CRM_Fintrxn_Generator {
       $account = $cocoaCode->findAccountWithAccountCode($accountCode, $this->_config->getCampaignAccountTypeCode());
     }
     return $account['id'];
+  }
+
+  /**
+   * Method to initialize contribution status based on new values
+   *
+   * @param $newValues
+   * @return mixed
+   * @throws Exception when error from api
+   */
+  private function initializeContributionStatusId($newValues) {
+    // get contribution status id from current contribution if id is set, else completed
+    if (isset($newValues['id'])) {
+      try {
+        return civicrm_api3('Contribution', 'getvalue', array('id' => $newValues['id'], 'return' => 'contribution_status_id'));
+      }
+      // something is horribly wrong if we try to update an non-existing contribution
+      catch (CiviCRM_API3_Exception $ex) {
+        throw new Exception('Could not find a contribution with id '.$newValues['id'].' in '.__METHOD__
+          .'. Contact your system administrator. Error from API Contribution getvalue: '.$ex->getMessage());
+      }
+    } else {
+      return $this->_config->getCompletedContributionStatusId();
+    }
+  }
+
+  /**
+   * Method to check if reversing the original transaction is required when operation is edit
+   * (it is not when the contribution is changing from status pending to status completed or when
+   *  changing from is_test = 1 to is_test = 0)
+   *
+   * @return bool
+   */
+  private function isReversalRequired() {
+    if (in_array($this->_oldContributionData['contribution_status_id'], $this->_config->getValidContributionStatus())) {
+      return FALSE;
+    }
+    if ($this->_oldContributionData['is_test'] == 1)
+    return TRUE;
   }
 
 

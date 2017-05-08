@@ -45,8 +45,7 @@ class CRM_Fintrxn_FinancialTransaction {
   public function validateTransaction() {
     if (!empty($this->_financialTransactionId)) {
       // get the financial transaction/entity financial transaction and process only if entity table = civicrm_contribution
-      $sql = "SELECT t.id AS financial_transaction_id, t.from_financial_account_id, t.to_financial_account_id, t.check_number, 
-        e.entity_id AS contribution_id 
+      $sql = "SELECT t.id AS financial_transaction_id, t.from_financial_account_id, t.to_financial_account_id, e.entity_id AS contribution_id 
         FROM civicrm_financial_trxn t JOIN civicrm_entity_financial_trxn e ON t.id = e.financial_trxn_id
         WHERE t.id = %1 AND e.entity_table = %2";
       $daoTransaction = CRM_Core_DAO::executeQuery($sql, array(
@@ -114,6 +113,19 @@ class CRM_Fintrxn_FinancialTransaction {
     } catch (CiviCRM_API3_Exception $ex) {
     }
     return FALSE;
+  }
+
+  /**
+   * Method to process the civicrm post hook
+   *
+   * @param $op
+   * @param $objectId
+   */
+  public static function post($op, $objectId) {
+    // if contribution is deleted, make sure all financial transactions with check_number 'AIVL fintrxn' are also deleted
+    if ($op == 'delete') {
+
+    }
   }
 
 }

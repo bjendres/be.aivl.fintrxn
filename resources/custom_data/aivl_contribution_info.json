@@ -12,20 +12,32 @@
         "name": "Incoming_Bank_Account",
         "label": "Incoming Bank Account",
         "data_type": "String",
-        "html_type": "Text",
+        "html_type": "Select",
         "is_searchable": 1,
         "is_view": 0,
+        "is_required":1,
         "weight": -100,
+        "option_group":"incoming_bank_account_20150820143729",
         "is_active": 1
+      },
+      "Cancellation_Fee":{
+        "name": "Cancellation_Fee",
+        "label": "Cancellation Fee",
+        "data_type": "Money",
+        "html_type": "Text",
+        "is_active": 1,
+        "is_view": 0,
+        "is_searchable":0
       },
       "Refund_Bank_Account": {
         "name": "Refund_Bank_Account",
         "label": "Refund Bank Account",
         "data_type": "String",
-        "html_type": "Text",
+        "html_type": "Select",
         "is_searchable": 1,
         "is_view": 0,
         "weight": -100,
+        "option_group":"incoming_bank_account_20150820143729",
         "is_active": 1
       }
     }
