@@ -56,8 +56,6 @@ class CRM_Fintrxn_Generator {
       if (!isset($this->_oldContributionData['tax_amount'])) {
         $this->_oldContributionData['tax_amount'] = NULL;
       }
-    } else {
-      error_log("OPERATION '{$operation}' was ignored.");
     }
   }
 
@@ -71,7 +69,6 @@ class CRM_Fintrxn_Generator {
    * @param $contributionId
    */
   public static function create($operation, $values, $contributionId) {
-    // error_log("CREATE $operation/$contributionId: " . json_encode($values));
     self::$_singleton = new CRM_Fintrxn_Generator($operation, $contributionId, $values);
   }
 
@@ -158,11 +155,11 @@ class CRM_Fintrxn_Generator {
     $this->_oldContributionData['fee_amount'] = -$this->_oldContributionData['fee_amount'];
     $refundCustomField = 'custom_'.$this->_config->getRefundAccountCustomField('id');
     $trxData = $this->createTransactionData($this->_oldContributionData);
-    $trxData['from_financial_account_id'] = $this->getFinancialAccountForCampaign($this->_oldContributionData['campaign_id'],
+    $trxData['from_financial_account_id'] = CRM_Fintrxn_Utils::getFinancialAccountForCampaign($this->_oldContributionData['campaign_id'],
       $this->_oldContributionData['receive_date']);
-    $trxData['to_financial_account_id'] = $this->getFinancialAccountForBankAccount($this->_oldContributionData[$refundCustomField]);
+    $trxData['to_financial_account_id'] = CRM_Fintrxn_Utils::getFinancialAccountForBankAccount($this->_newContributionData[$refundCustomField]);
     // use new contribution status
-    $trxData['contribution_status_id'] = $this->_newContributionData['contribution_status_id'];
+    $trxData['status_id'] = $this->_newContributionData['contribution_status_id'];
     $this->writeTransaction($trxData);
   }
 
@@ -179,15 +176,15 @@ class CRM_Fintrxn_Generator {
       $this->_oldContributionData['net_amount'] = -$this->_oldContributionData['net_amount'];
       $this->_oldContributionData['fee_amount'] = -$this->_oldContributionData['fee_amount'];
       $oldTrxData = $this->createTransactionData($this->_oldContributionData, new DateTime($this->_oldContributionData['receive_date']));
-      $oldTrxData['from_financial_account_id'] = $this->getFinancialAccountForBankAccount($this->_oldContributionData[$incomingCustomField]);
-      $oldTrxData['to_financial_account_id'] = $this->getFinancialAccountForCampaign($this->_oldContributionData['campaign_id'],
+      $oldTrxData['from_financial_account_id'] = CRM_Fintrxn_Utils::getFinancialAccountForBankAccount($this->_oldContributionData[$incomingCustomField]);
+      $oldTrxData['to_financial_account_id'] = CRM_Fintrxn_Utils::getFinancialAccountForCampaign($this->_oldContributionData['campaign_id'],
         $this->_oldContributionData['receive_date']);
       $this->writeTransaction($oldTrxData);
     }
     // then create new transaction
     $newTrxData = $this->createTransactionData($this->_newContributionData, $this->setDateForEdit());
-    $newTrxData['from_financial_account_id'] = $this->getFinancialAccountForBankAccount($this->_newContributionData[$incomingCustomField]);
-    $newTrxData['to_financial_account_id'] = $this->getFinancialAccountForCampaign($this->_newContributionData['campaign_id'],
+    $newTrxData['from_financial_account_id'] = CRM_Fintrxn_Utils::getFinancialAccountForBankAccount($this->_newContributionData[$incomingCustomField]);
+    $newTrxData['to_financial_account_id'] = CRM_Fintrxn_Utils::getFinancialAccountForCampaign($this->_newContributionData['campaign_id'],
       $this->_newContributionData['receive_date']);
     $this->writeTransaction($newTrxData);
   }
@@ -199,9 +196,10 @@ class CRM_Fintrxn_Generator {
    */
   private function processNewContribution() {
     $incomingCustomField = 'custom_'.$this->_config->getIncomingAccountCustomField();
-    $trxData = $this->createTransactionData($this->_newContributionData);
-    $trxData['from_financial_account_id'] = $this->getFinancialAccountForBankAccount($this->_newContributionData[$incomingCustomField]);
-    $trxData['to_financial_account_id'] = $this->getFinancialAccountForCampaign($this->_newContributionData['campaign_id'],
+    $receiveDate = new DateTime($this->_newContributionData['receive_date']);
+    $trxData = $this->createTransactionData($this->_newContributionData, $receiveDate);
+    $trxData['from_financial_account_id'] = CRM_Fintrxn_Utils::getFinancialAccountForBankAccount($this->_newContributionData[$incomingCustomField]);
+    $trxData['to_financial_account_id'] = CRM_Fintrxn_Utils::getFinancialAccountForCampaign($this->_newContributionData['campaign_id'],
       $this->_newContributionData['receive_date']);
     $this->writeTransaction($trxData);
   }
@@ -277,13 +275,11 @@ class CRM_Fintrxn_Generator {
    * @return array
    */
   protected function createEntityTransactionData($financialTrxn) {
-    // todo what to do if in case of refunds etc? is _contributionId filled? And should I only use the _newContribution is that
-    // todo one is empty?
     return array(
       'entity_table' => 'civicrm_contribution',
       'entity_id' => $this->_newContributionData['id'],
       'financial_trxn_id' => $financialTrxn['id'],
-      'amount' => $this->_newContributionData['total_amount']
+      'amount' => $financialTrxn['values'][$financialTrxn['id']]['total_amount'],
     );
   }
 
@@ -389,64 +385,6 @@ class CRM_Fintrxn_Generator {
     return FALSE;
   }
 
-
-  /**
-   * look up financial account id based on bank account
-   *
-   * @param $bankAccount
-   * @return integer
-   * @throws Exception when no financial account found
-   */
-  protected function getFinancialAccountForBankAccount($bankAccount) {
-    if (empty($bankAccount)) {
-      return $this->_config->getDefaultCocoaFinancialAccountId();
-    }
-    if (!empty($bankAccount)) {
-      // lookup account id
-      $cocoaCode = new CRM_Fintrxn_CocoaCode();
-      $account = $cocoaCode->findAccountWithName($bankAccount, $this->_config->getIbanAccountTypeCode());
-      if (empty($account)) {
-        return $this->_config->getDefaultCocoaFinancialAccountId();
-      } else {
-        return $account['id'];
-      }
-    }
-  }
-
-  /**
-   * look up the financial account id based on campaign id
-   *
-   * @param $campaignId
-   * @param $receiveDate
-   * @return mixed
-   */
-  protected function getFinancialAccountForCampaign($campaignId, $receiveDate) {
-    if (empty($campaignId)) {
-      return $this->_config->getDefaultCocoaFinancialAccountId();
-    } else {
-      // get the COCOA codes from the campaign
-      $campaign = $this->cachedLookup('Campaign', array(
-        'id' => $campaignId,
-        'return' => $this->_config->getCocoaFieldList()));
-      $accountCode = $this->_config->getCocoaValue($campaign, $receiveDate);
-    }
-    // lookup account id
-    $cocoaCode = new CRM_Fintrxn_CocoaCode();
-    $account = $cocoaCode->findAccountWithAccountCode($accountCode, $this->_config->getCampaignAccountTypeCode());
-    if (empty($account['id'])) {
-      $cocoaCode->createFinancialAccount(array(
-        'name' => 'COCAO Code '.$accountCode,
-        'description' => 'AIVL COCOA code '.$accountCode.' (niet aankomen!)',
-        'accounting_code' => $accountCode,
-        'account_type_code' => $this->_config->getCampaignAccountTypeCode(),
-        'is_reserved' => 1,
-        'is_active' => 1,
-      ));
-      $account = $cocoaCode->findAccountWithAccountCode($accountCode, $this->_config->getCampaignAccountTypeCode());
-    }
-    return $account['id'];
-  }
-
   /**
    * Method to initialize contribution status based on new values
    *
@@ -478,10 +416,12 @@ class CRM_Fintrxn_Generator {
    * @return bool
    */
   private function isReversalRequired() {
-    if (in_array($this->_oldContributionData['contribution_status_id'], $this->_config->getValidContributionStatus())) {
+    if (!in_array($this->_oldContributionData['contribution_status_id'], $this->_config->getValidContributionStatus())) {
       return FALSE;
     }
-    if ($this->_oldContributionData['is_test'] == 1)
+    if ($this->_oldContributionData['is_test'] == 1 && $this->_newContributionData['is_test'] == 0) {
+      return FALSE;
+    }
     return TRUE;
   }
 
@@ -494,7 +434,6 @@ class CRM_Fintrxn_Generator {
    * @return mixed
    */
   protected function cachedLookup($entity, $selector) {
-    // error_log("LOOKUP: $entity " . json_encode($selector));
     $cacheKey = sha1($entity.json_encode($selector));
     if (array_key_exists($cacheKey, self::$_lookupCache)) {
       return self::$_lookupCache[$cacheKey];
@@ -502,7 +441,6 @@ class CRM_Fintrxn_Generator {
       try {
         $result = civicrm_api3($entity, 'getsingle', $selector);
         self::$_lookupCache[$cacheKey] = $result;
-        // error_log("RESULT: " . json_encode($result));
         return $result;
       } catch (Exception $e) {
         // not uniquely identified

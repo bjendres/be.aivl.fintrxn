@@ -10,6 +10,20 @@
 
 require_once 'fintrxn.civix.php';
 
+function fintrxn_civicrm_links($op, $objectName, $objectId, &$links, &$mask, &$values) {
+  if ($objectName == 'Batch' && $op == 'batch.selector.row') {
+    if ($values['status'] == 1) {
+      $links[] = array(
+        'name' => ts('Validate'),
+        'url' => 'civicrm/fintrxn/page/batchvalidate',
+        'title' => 'Validate Batch',
+        'qs' => 'reset=1&bid=%%bid%%',
+        'bit' => 'validate',
+      );
+      $values['bid'] = $objectId;
+    }
+  }
+}
 /**
  * Implements hook_civicrm_validateForm
  *

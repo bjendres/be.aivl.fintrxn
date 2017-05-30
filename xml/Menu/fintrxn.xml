@@ -6,4 +6,10 @@
     <title>CocoaCode</title>
     <access_arguments>access CiviCRM</access_arguments>
   </item>
+  <item>
+    <path>civicrm/fintrxn/page/batchvalidate</path>
+    <page_callback>CRM_Fintrxn_Page_BatchValidate</page_callback>
+    <title>BatchValidate</title>
+    <access_arguments>access CiviCRM</access_arguments>
+  </item>
 </menu>

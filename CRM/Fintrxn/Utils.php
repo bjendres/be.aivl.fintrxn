@@ -96,4 +96,82 @@ class CRM_Fintrxn_Utils {
     return FALSE;
   }
 
+  /**
+   * look up financial account id based on bank account
+   *
+   * @param $bankAccount
+   * @return integer
+   * @throws Exception when no financial account found
+   */
+  public static function getFinancialAccountForBankAccount($bankAccount) {
+    $config = CRM_Fintrxn_Configuration::singleton();
+    if (empty($bankAccount)) {
+      return $config->getDefaultCocoaFinancialAccountId();
+    }
+    if (!empty($bankAccount)) {
+      // lookup account id
+      $cocoaCode = new CRM_Fintrxn_CocoaCode();
+      $account = $cocoaCode->findAccountWithName($bankAccount, $config->getIbanAccountTypeCode());
+      if (empty($account)) {
+        return $config->getDefaultCocoaFinancialAccountId();
+      } else {
+        return $account['id'];
+      }
+    }
+  }
+
+  /**
+   * look up the financial account id based on campaign id
+   *
+   * @param $campaignId
+   * @param $receiveDate
+   * @return mixed
+   */
+  public static function getFinancialAccountForCampaign($campaignId, $receiveDate) {
+    $config = CRM_Fintrxn_Configuration::singleton();
+    if (empty($campaignId)) {
+      return $config->getDefaultCocoaFinancialAccountId();
+    } else {
+      // get the COCOA codes from the campaign
+      $campaign = civicrm_api3('Campaign', 'getsingle', array(
+        'id' => $campaignId,
+        'return' => $config->getCocoaFieldList()));
+      $accountCode = $config->getCocoaValue($campaign, $receiveDate);
+    }
+    // lookup account id
+    $cocoaCode = new CRM_Fintrxn_CocoaCode();
+    $account = $cocoaCode->findAccountWithAccountCode($accountCode, $config->getCampaignAccountTypeCode());
+    if (empty($account['id'])) {
+      $cocoaCode->createFinancialAccount(array(
+        'name' => 'COCAO Code '.$accountCode,
+        'description' => 'AIVL COCOA code '.$accountCode.' (niet aankomen!)',
+        'accounting_code' => $accountCode,
+        'account_type_code' => $config->getCampaignAccountTypeCode(),
+        'is_reserved' => 1,
+        'is_active' => 1,
+      ));
+      $account = $cocoaCode->findAccountWithAccountCode($accountCode, $config->getCampaignAccountTypeCode());
+    }
+    return $account['id'];
+  }
+
+  /**
+   * Method to get the financial account name
+   *
+   * @param $financialAccountId
+   * @return array|null
+   */
+  public static function getFinancialAccountName($financialAccountId) {
+    try {
+      return civicrm_api3('FinancialAccount', 'getvalue', array(
+        'id' => $financialAccountId,
+        'return' => 'name',
+      ));
+    }
+    catch (CiviCRM_API3_Exception $ex) {
+      return NULL;
+    }
+
+  }
+
 }

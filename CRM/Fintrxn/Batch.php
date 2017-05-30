@@ -57,27 +57,6 @@ class CRM_Fintrxn_Batch {
   }
 
   /**
-   * Method to validate all financial transactions in a batch before the batch
-   * is exported
-   *
-   * @return array|bool
-   */
-  public function validateBatch() {
-    $errors = array();
-    if (!empty($this->_batchId)) {
-      $finTrxnIds = $this->getFinancialTransactionIds();
-      foreach ($finTrxnIds as $finTrxnId) {
-        $financialTransaction = new CRM_Fintrxn_FinancialTransaction($finTrxnId);
-        $errorMessage = $financialTransaction->validateTransaction();
-        if (!empty($errorMessage)) {
-          $errors[$finTrxnId] = $errorMessage;
-        }
-      }
-    }
-    return $errors;
-  }
-
-  /**
    * Method to process validateForm hook
    *
    * @param $form

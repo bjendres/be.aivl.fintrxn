@@ -116,6 +116,100 @@ class CRM_Fintrxn_FinancialTransaction {
   }
 
   /**
+   * Method to fix accounts for a financial trxn id if possible
+   *
+   * @param object $dao with financial transaction columns id, status_id, to_financial_account_id and from_financial_account_id
+   * @return bool
+   */
+  public static function fixAccounts($dao) {
+    CRM_Core_Error::debug('dao', $dao);
+    exit();
+    // can not fix if not passed object
+    if (!is_object($dao)) {
+      return FALSE;
+    }
+    // can not fix if required properties not in dao
+    if (!isset($dao->id) || !isset($dao->status_id) || !isset($dao->to_financial_account_id)
+      || !isset($dao->from_financial_account_id)) {
+      return FALSE;
+    }
+    // find contribution id from civicrm_entity_financial_transaction
+    $sql = "SELECT entity_id FROM civicrm_entity_financial_trxn WHERE entity_table = %1 AND financial_trxn_id = %2";
+    $sqlParams = array(
+      1 => array('civicrm_contribution', 'String',),
+      2 => array($dao->id, 'Integer',),
+    );
+    $contributionId = CRM_Core_DAO::singleValueQuery($sql, $sqlParams);
+    if ($contributionId) {
+      // get contribution data
+      try {
+        $contribution = civicrm_api3('Contribution', 'getsingle', array('id' => $contributionId,));
+        $fromFinancialAccountId = self::setFromFinancialAccount($dao->status_id, $contribution);
+        $toFinancialAccountId = self::setToFinancialAccount($dao->status_id, $contribution);
+        // if any changes, update and return fix is true
+        if ($fromFinancialAccountId != $dao->from_financial_account_id || $toFinancialAccountId != $dao->to_financial_account_id) {
+          $update = "UPDATE civicrm_financial_trxn SET from_financial_account_id = %1, to_financial_account_id = %2 WHERE id = %3";
+          $updateParams = array(
+            1 => array($fromFinancialAccountId, 'Integer',),
+            2 => array($toFinancialAccountId, 'Integer',),
+            3 => array($dao->id, 'Integer',),
+          );
+          CRM_Core_DAO::executeQuery($update, $updateParams);
+          return TRUE;
+        }
+      }
+      catch (CiviCRM_API3_Exception $ex) {
+      }
+    }
+    return FALSE;
+  }
+
+  /**
+   * Method to determine from financial account
+   *
+   * @param $statusId
+   * @param $contribution
+   * @return int|mixed|null
+   */
+  private static function setFromFinancialAccount($statusId, $contribution) {
+    $config = CRM_Fintrxn_Configuration::singleton();
+    // if refund or cancel, from account is based on campaign
+    if ($statusId == $config->getCancelContributionStatusId() || $statusId == $config->getRefundContributionStatusId()) {
+      return CRM_Fintrxn_Utils::getFinancialAccountForCampaign($contribution['contribution_campaign_id'], $contribution['receive_date']);
+    } else {
+      // in all other cases, from account is based on custom field incoming account
+      $incomingCustomFieldId = 'custom_'.$config->getIncomingAccountCustomField('id');
+      if (isset($contribution[$incomingCustomFieldId]) && !empty($contribution[$incomingCustomFieldId])) {
+        return CRM_Fintrxn_Utils::getFinancialAccountForBankAccount($contribution[$incomingCustomFieldId]);
+      } else {
+        return $config->getDefaultCocoaFinancialAccountId();
+      }
+    }
+  }
+
+  /**
+   * Method to determine to financial account id
+   *
+   * @param $statusId
+   * @param $contribution
+   * @return int|mixed|null
+   */
+  private static function setToFinancialAccount($statusId, $contribution) {
+    $config = CRM_Fintrxn_Configuration::singleton();
+    // if refund or cancel, to account is based on custom field for refund account
+    if ($statusId == $config->getCancelContributionStatusId() || $statusId == $config->getRefundContributionStatusId()) {
+      $refundCustomFieldId = 'custom_'.$config->getRefundAccountCustomField('id');
+      if (isset($contribution[$refundCustomFieldId]) && !empty($contribution[$refundCustomFieldId])) {
+        return CRM_Fintrxn_Utils::getFinancialAccountForBankAccount($contribution[$refundCustomFieldId]);
+      } else {
+        return $config->getDefaultCocoaFinancialAccountId();
+      }
+    } else {
+      return CRM_Fintrxn_Utils::getFinancialAccountForCampaign($contribution['contribution_campaign_id'], $contribution['receive_date']);
+    }
+  }
+
+  /**
    * Method to process the civicrm post hook
    *
    * @param $op
