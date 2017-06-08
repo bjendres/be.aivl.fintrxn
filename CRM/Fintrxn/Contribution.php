@@ -18,7 +18,6 @@ class CRM_Fintrxn_Contribution {
     // if contribution_status_id = refund, validate refund bank account is set
     if (isset($fields['contribution_status_id']) && $fields['contribution_status_id'] == $config->getRefundContributionStatusId()) {
       $refundAccountCustomField = 'custom_'.$config->getRefundAccountCustomField('id');
-
       foreach ($fields as $fieldName => $fieldValue) {
         $parts = explode("custom_", $fieldName);
         if (isset($parts[1])) {
@@ -29,8 +28,17 @@ class CRM_Fintrxn_Contribution {
           }
         }
       }
-      if (!isset($fields[$refundFieldName]) || empty($fields[$refundFieldName])) {
+      if (!isset($refundFieldName) || empty($refundFieldName)) {
+        $errors['contribution_status_id'] = ts('You have to select a refund bank account if the contribution is going to be refunded.');
+        return;
+      }
+      if (!isset($fields[$refundFieldName])) {
         $errors[$refundFieldName] = ts('You have to select a refund bank account if the contribution is going to be refunded.');
+        return;
+      }
+      if (empty($fields[$refundFieldName])) {
+        $errors[$refundFieldName] = ts('You have to select a refund bank account if the contribution is going to be refunded.');
+        return;
       }
     }
     return;

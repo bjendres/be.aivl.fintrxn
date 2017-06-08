@@ -4,6 +4,7 @@ class CRM_Fintrxn_Page_BatchValidate extends CRM_Core_Page {
 
   protected $_batchId = NULL;
   protected $_batchErrors = array();
+  protected $_validatedBatchStatus = NULL;
 
   /**
    * Child method to run the page
@@ -22,6 +23,15 @@ class CRM_Fintrxn_Page_BatchValidate extends CRM_Core_Page {
     }
     if (!empty($this->_batchErrors)) {
       $this->assign('batchErrors', $this->_batchErrors);
+    } else {
+      try {
+        civicrm_api3('Batch', 'create', array(
+          'id' => $this->_batchId,
+          'status_id' => $this->_validatedBatchStatus,
+        ));
+      }
+      catch (CiviCRM_API3_Exception $ex) {
+      }
     }
     parent::run();
   }
@@ -110,6 +120,16 @@ class CRM_Fintrxn_Page_BatchValidate extends CRM_Core_Page {
    * Method to initialize the page
    */
   private function initializePage() {
+    try {
+      $this->_validatedBatchStatus = civicrm_api3('OptionValue', 'getvalue', array(
+        'option_group_id' => 'batch_status',
+        'name' => 'Validated',
+        'return' => 'value',));
+    }
+    catch (CiviCRM_API3_Exception $ex) {
+      throw new Exception(ts('Could not find the batch status Validated in '.__METHOD__
+        .', contact your system administrator. Error from API OptionValue getvalue: '.$ex->getMessage()));
+    }
     $requestValues = CRM_Utils_Request::exportValues();
     if (isset($requestValues['bid'])) {
       $this->_batchId = $requestValues['bid'];

@@ -257,6 +257,13 @@ class CRM_Fintrxn_Generator {
    * @param $data
    */
   protected function writeTransaction($data) {
+    // make sure that from and to financial account are present
+    if (!isset($data['to_financial_account_id']) || empty($data['to_financial_account_id'])) {
+      $data['to_financial_account_id'] = $this->_config->getDefaultCocoaFinancialAccountId();
+    }
+    if (!isset($data['from_financial_account_id']) || empty($data['from_financial_account_id'])) {
+      $data['from_financial_account_id'] = $this->_config->getDefaultCocoaFinancialAccountId();
+    }
     try {
       $financialTrxn = civicrm_api3('FinancialTrxn', 'create', $data);
       // now add entity

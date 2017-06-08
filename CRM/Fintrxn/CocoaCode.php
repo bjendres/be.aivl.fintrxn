@@ -230,8 +230,6 @@ class CRM_Fintrxn_CocoaCode {
    */
   public function createFinancialAccount($finAccountData) {
     try {
-      $created = civicrm_api3('FinancialAccount', 'create', $finAccountData);
-      return $created['values'];
     } catch (CiviCRM_API3_Exception $ex) {
       throw new Exception(ts('Could not create a financial acccount in').' '.__METHOD__.' '
         .ts(', contact your system administrator').', '.ts('error from API FinancialAccount create').': '.$ex->getMessage());

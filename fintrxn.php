@@ -10,8 +10,15 @@
 
 require_once 'fintrxn.civix.php';
 
+/**
+ *
+ * Implements hook_civicrm_links
+ *
+ * @link https://docs.civicrm.org/dev/en/master/hooks/hook_civicrm_links/
+ */
 function fintrxn_civicrm_links($op, $objectName, $objectId, &$links, &$mask, &$values) {
   if ($objectName == 'Batch' && $op == 'batch.selector.row') {
+    // add validate for open batches
     if ($values['status'] == 1) {
       $links[] = array(
         'name' => ts('Validate'),
@@ -33,9 +40,6 @@ function fintrxn_civicrm_validateForm($formName, &$fields, &$files, &$form, &$er
   switch ($formName) {
     case "CRM_Campaign_Form_Campaign":
       CRM_Fintrxn_Campaign::validateForm($fields, $errors);
-      break;
-    case "CRM_Financial_Form_Export":
-      CRM_Fintrxn_Batch::validateForm($form, $errors);
       break;
     case "CRM_Contribute_Form_Contribution":
       CRM_Fintrxn_Contribution::validateForm($fields, $errors);
@@ -117,7 +121,6 @@ function fintrxn_civicrm_pre($op, $objectName, $id, &$params) {
 function fintrxn_civicrm_post($op, $objectName, $objectId, &$objectRef) {
   if ($objectName == 'Contribution') {
     CRM_Fintrxn_Generator::generate($op, $objectId, $objectRef);
-    CRM_Fintrxn_FinancialTransaction::post($op, $objectId);
   }
 }
 

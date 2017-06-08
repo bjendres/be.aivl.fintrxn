@@ -138,19 +138,23 @@ class CRM_Fintrxn_Utils {
         'return' => $config->getCocoaFieldList()));
       $accountCode = $config->getCocoaValue($campaign, $receiveDate);
     }
-    // lookup account id
-    $cocoaCode = new CRM_Fintrxn_CocoaCode();
-    $account = $cocoaCode->findAccountWithAccountCode($accountCode, $config->getCampaignAccountTypeCode());
-    if (empty($account['id'])) {
-      $cocoaCode->createFinancialAccount(array(
-        'name' => 'COCAO Code '.$accountCode,
-        'description' => 'AIVL COCOA code '.$accountCode.' (niet aankomen!)',
-        'accounting_code' => $accountCode,
-        'account_type_code' => $config->getCampaignAccountTypeCode(),
-        'is_reserved' => 1,
-        'is_active' => 1,
-      ));
+    if (empty($accountCode)) {
+      return $config->getDefaultCocoaFinancialAccountId();
+    } else {
+      // lookup account id if we have an accountCode
+      $cocoaCode = new CRM_Fintrxn_CocoaCode();
       $account = $cocoaCode->findAccountWithAccountCode($accountCode, $config->getCampaignAccountTypeCode());
+      if (empty($account['id'])) {
+        $cocoaCode->createFinancialAccount(array(
+          'name' => 'COCAO Code ' . $accountCode,
+          'description' => 'AIVL COCOA code ' . $accountCode . ' (niet aankomen!)',
+          'accounting_code' => $accountCode,
+          'account_type_code' => $config->getCampaignAccountTypeCode(),
+          'is_reserved' => 1,
+          'is_active' => 1,
+        ));
+        $account = $cocoaCode->findAccountWithAccountCode($accountCode, $config->getCampaignAccountTypeCode());
+      }
     }
     return $account['id'];
   }

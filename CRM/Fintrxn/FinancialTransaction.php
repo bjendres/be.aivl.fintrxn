@@ -82,11 +82,11 @@ class CRM_Fintrxn_FinancialTransaction {
             .$contribution['contribution_campaign_id']);
         }
         // finally check if the financial accounts exist
-        if ($this->entityExists('FinancialAccount', $daoTransaction->from_financial_account_id)) {
+        if ($this->entityExists('FinancialAccount', $daoTransaction->from_financial_account_id) == FALSE) {
           return ts('The FROM account for the transaction of contribution with id '.$contribution['id']
             .' does not exist.');
         }
-        if ($this->entityExists('FinancialAccount', $daoTransaction->to_financial_account_id)) {
+        if ($this->entityExists('FinancialAccount', $daoTransaction->to_financial_account_id) == FALSE) {
           return ts('The TO account for the transaction of contribution with id '.$contribution['id']
             .' does not exist.');
         }
@@ -122,8 +122,6 @@ class CRM_Fintrxn_FinancialTransaction {
    * @return bool
    */
   public static function fixAccounts($dao) {
-    CRM_Core_Error::debug('dao', $dao);
-    exit();
     // can not fix if not passed object
     if (!is_object($dao)) {
       return FALSE;
@@ -208,18 +206,4 @@ class CRM_Fintrxn_FinancialTransaction {
       return CRM_Fintrxn_Utils::getFinancialAccountForCampaign($contribution['contribution_campaign_id'], $contribution['receive_date']);
     }
   }
-
-  /**
-   * Method to process the civicrm post hook
-   *
-   * @param $op
-   * @param $objectId
-   */
-  public static function post($op, $objectId) {
-    // if contribution is deleted, make sure all financial transactions with check_number 'AIVL fintrxn' are also deleted
-    if ($op == 'delete') {
-
-    }
-  }
-
 }

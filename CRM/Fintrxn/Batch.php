@@ -8,7 +8,7 @@
  */
 class CRM_Fintrxn_Batch {
 
-  protected $_batchId = NULL;
+  private $_batchId = NULL;
 
   /**
    * CRM_Fintrxn_Batch constructor.
@@ -54,26 +54,5 @@ class CRM_Fintrxn_Batch {
       }
     }
     return $result;
-  }
-
-  /**
-   * Method to process validateForm hook
-   *
-   * @param $form
-   * @param $errors
-   */
-  public static function validateForm($form, &$errors) {
-    $batchId = $form->getVar('_id');
-    if (!empty($batchId)) {
-      $batch = new CRM_Fintrxn_Batch($batchId);
-      $batchErrors = $batch->validateBatch();
-      if (!empty($batchErrors)) {
-        $errors['export_format'] = ts('You can not export this batch, errors found');
-        foreach ($batchErrors as $batchError) {
-          $errors['export_format'] = ts('You can not export this batch, error found: '.$batchError);
-        }
-      }
-    }
-    return;
   }
 }
