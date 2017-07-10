@@ -15,12 +15,12 @@
     <url desc="Licensing">http://www.gnu.org/licenses/agpl-3.0.html</url>
   </urls>
   <releaseDate>2017-01-24</releaseDate>
-  <version>0.2</version>
+  <version>1.0</version>
   <develStage>beta</develStage>
   <compatibility>
     <ver>4.6</ver>
   </compatibility>
-  <comments>Extension is ready for pre-release testing</comments>
+  <comments>Extension is being tested</comments>
   <civix>
     <namespace>CRM/Fintrxn</namespace>
   </civix>
