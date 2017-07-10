@@ -199,8 +199,12 @@ class CRM_Fintrxn_Generator {
     $receiveDate = new DateTime($this->_newContributionData['receive_date']);
     $trxData = $this->createTransactionData($this->_newContributionData, $receiveDate);
     $trxData['from_financial_account_id'] = CRM_Fintrxn_Utils::getFinancialAccountForBankAccount($this->_newContributionData[$incomingCustomField]);
-    $trxData['to_financial_account_id'] = CRM_Fintrxn_Utils::getFinancialAccountForCampaign($this->_newContributionData['campaign_id'],
-      $this->_newContributionData['receive_date']);
+    if (!isset($this->_newContributionData['campaign_id']) || empty($this->_newContributionData['campaign_id']) || $this->_newContributionData['campaign_id'] == 'null') {
+      $this->_newContributionData['to_financial_account_id'] = $this->_config->getDefaultCocoaFinancialAccountId();
+    } else {
+      $trxData['to_financial_account_id'] = CRM_Fintrxn_Utils::getFinancialAccountForCampaign($this->_newContributionData['campaign_id'],
+        $this->_newContributionData['receive_date']);
+    }
     $this->writeTransaction($trxData);
   }
 

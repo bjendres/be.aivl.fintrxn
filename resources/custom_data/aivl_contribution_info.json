@@ -15,7 +15,7 @@
         "html_type": "Select",
         "is_searchable": 1,
         "is_view": 0,
-        "is_required":1,
+        "is_required":0,
         "weight": -100,
         "option_group":"incoming_bank_account_20150820143729",
         "is_active": 1
