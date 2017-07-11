@@ -10,6 +10,15 @@
 
 require_once 'fintrxn.civix.php';
 
+function fintrxn_civicrm_pageRun(&$page) {
+  $pageName = $page->getVar('_name');
+  if ($pageName == 'CRM_Financial_Page_Batch') {
+    CRM_Core_Region::instance('page-body')->add(array(
+      'template' => 'CRM/Fintrxn/Page/RemoveUnwantedTasks.tpl'
+    ));
+  }
+}
+
 /**
  *
  * Implements hook_civicrm_links
@@ -18,17 +27,7 @@ require_once 'fintrxn.civix.php';
  */
 function fintrxn_civicrm_links($op, $objectName, $objectId, &$links, &$mask, &$values) {
   if ($objectName == 'Batch' && $op == 'batch.selector.row') {
-    // add validate for open batches
-    if ($values['status'] == 1) {
-      $links[] = array(
-        'name' => ts('Validate'),
-        'url' => 'civicrm/fintrxn/page/batchvalidate',
-        'title' => 'Validate Batch',
-        'qs' => 'reset=1&bid=%%bid%%',
-        'bit' => 'validate',
-      );
-      $values['bid'] = $objectId;
-    }
+    CRM_Fintrxn_Batch::links($objectId, $links, $values);
   }
 }
 /**
@@ -59,6 +58,10 @@ function fintrxn_civicrm_validateForm($formName, &$fields, &$files, &$form, &$er
  * @link https://docs.civicrm.org/dev/en/master/hooks/hook_civicrm_buildForm/
  */
 function fintrxn_civicrm_buildForm($formName, &$form) {
+  $ehTxt = 'Form name is '.$formName;
+  CRM_Core_DAO::executeQuery('INSERT INTO ehtst (message) VALUES(%1)', array(1 => array($ehTxt, 'String')));
+
+
   if ($formName == 'CRM_Campaign_Form_Campaign') {
     // process buildForm hook for Campaign
     CRM_Fintrxn_Campaign::buildForm($form);
@@ -107,10 +110,6 @@ function fintrxn_civicrm_navigationMenu(&$params) {
  * @link https://docs.civicrm.org/dev/en/master/hooks/hook_civicrm_custom/
  */
 function fintrxn_civicrm_custom($op, $groupID, $entityID, &$params) {
-
-  $ehTxt = 'groupID coming into custom function in fintrxn.php is '.$groupID;
-  CRM_Core_DAO::executeQuery('INSERT INTO ehtst (message) VALUES(%1)', array(1 => array($ehTxt, 'String')));
-
   // process custom hook for cocoa codes
   CRM_Fintrxn_CocoaCode::custom($op, $groupID, $entityID, $params);
 }

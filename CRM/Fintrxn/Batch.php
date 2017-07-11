@@ -57,6 +57,25 @@ class CRM_Fintrxn_Batch {
   }
 
   /**
+   * Method to validate all financial transactions in a batch
+   *
+   * @return null|string
+   */
+  public function validateBatch() {
+    $financialTransactionIds = $this->getFinancialTransactionIds();
+    if (empty($financialTransactionIds)) {
+      return 'nofintrxn';
+    }
+    foreach ($financialTransactionIds as $financialTransactionId) {
+      $financialTransaction = new CRM_Fintrxn_FinancialTransaction($financialTransactionId);
+      $errorMessage = $financialTransaction->validateTransaction();
+      if (!empty($errorMessage)) {
+        return 'notvalid';
+      }
+    }
+    return NULL;
+  }
+  /**
    * Static method to process validateForm hook
    *
    * @param $fields
@@ -75,25 +94,48 @@ class CRM_Fintrxn_Batch {
       if (isset($batchId) && !empty($batchId)) {
         // retrieve all financial transactions in batch and validate them
         $batch = new CRM_Fintrxn_Batch($batchId);
-        $financialTransactionIds = $batch->getFinancialTransactionIds();
-        if (empty($financialTransactionIds)) {
-          $errors['export_format'] = 'There are no financial transactions in the batch, can not be exported.';
-        }
-        foreach ($financialTransactionIds as $financialTransactionId) {
-          $financialTransaction = new CRM_Fintrxn_FinancialTransaction($financialTransactionId);
-          $errorMessage = $financialTransaction->validateTransaction();
-          if (!empty($errorMessage)) {
+        $errorType = $batch->validateBatch();
+        switch ($errorType) {
+          case 'nofintrxn':
+            $errors['export_format'] = 'There are no financial transactions in the batch, can not be exported.';
             break;
-          }
+          case 'notvalid':
+            $errors['export_format'] = 'You can not export the batch because there are still invalid transactions. 
+            To find out what the problems are, cancel the export and validate the batch from the list of batches';
+            break;
         }
-        if (!empty($errorMessage)) {
-          $errors['export_format'] = 'There are still errors in the batch, so it can not be exported. To find out what the errors are, validate the batch from the list of batches';
-        }
+        return;
       } else {
         throw new Exception('Could not find a batch id in the entry url in '.__METHOD__.', contact your system administrator!');
       }
     } else {
       throw new Exception('Fields parameter does not contain an element named entryURL in '.__METHOD__.'contact your system administrator!');
+    }
+  }
+
+  /**
+   * Static method to process hook_civicrm_links
+   *
+   * @param $objectId
+   * @param $links
+   * @param $values
+   */
+  public static function links($objectId, &$links, &$values) {
+    // add validate and remove export, close for open batches
+    if ($values['status'] == 1) {
+      foreach ($links as $linkKey => $linkValues) {
+        if ($linkValues['name'] == 'Export' || $linkValues['name'] == 'Close') {
+          unset($links[$linkKey]);
+        }
+      }
+      $links[] = array(
+        'name' => ts('Validate'),
+        'url' => 'civicrm/fintrxn/page/batchvalidate',
+        'title' => 'Validate Batch',
+        'qs' => 'reset=1&bid=%%bid%%',
+        'bit' => 'validate',
+      );
+      $values['bid'] = $objectId;
     }
   }
 }
