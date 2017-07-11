@@ -230,6 +230,8 @@ class CRM_Fintrxn_CocoaCode {
    */
   public function createFinancialAccount($finAccountData) {
     try {
+      $created = civicrm_api3('FinancialAccount', 'create', $finAccountData);
+      return $created['values'];
     } catch (CiviCRM_API3_Exception $ex) {
       throw new Exception(ts('Could not create a financial acccount in').' '.__METHOD__.' '
         .ts(', contact your system administrator').', '.ts('error from API FinancialAccount create').': '.$ex->getMessage());
@@ -281,14 +283,15 @@ class CRM_Fintrxn_CocoaCode {
         if (in_array($param['column_name'], $relevantCustomFields)) {
           $cocoaCode = new CRM_Fintrxn_CocoaCode();
           if ($cocoaCode->cocoaCodeFinancialAccountExists($param['value']) == FALSE) {
-            $cocoaCode->createFinancialAccount(array(
+            $finAccountParams = array(
               'name' => 'COCAO Code '.$param['value'],
               'description' => 'AIVL COCOA code '.$param['value'].' (niet aankomen!)',
               'accounting_code' => $param['value'],
               'account_type_code' => $config->getCampaignAccountTypeCode(),
               'is_reserved' => 1,
               'is_active' => 1,
-            ));
+            );
+            $cocoaCode->createFinancialAccount($finAccountParams);
           }
         }
       }

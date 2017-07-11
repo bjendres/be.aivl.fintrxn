@@ -55,4 +55,45 @@ class CRM_Fintrxn_Batch {
     }
     return $result;
   }
+
+  /**
+   * Static method to process validateForm hook
+   *
+   * @param $fields
+   * @param $errors
+   * @throws Exception when unable to find batchId in entryURL or when entryURL absent from $fields
+   */
+  public static function validateForm($fields, &$errors) {
+    if (isset($fields['entryURL'])) {
+      $entryParts = explode('id=', $fields['entryURL']);
+      if (isset($entryParts[1])) {
+        $idParts = explode('&amp', $entryParts[1]);
+        if (is_numeric($idParts[0])) {
+          $batchId = (int) $idParts[0];
+        }
+      }
+      if (isset($batchId) && !empty($batchId)) {
+        // retrieve all financial transactions in batch and validate them
+        $batch = new CRM_Fintrxn_Batch($batchId);
+        $financialTransactionIds = $batch->getFinancialTransactionIds();
+        if (empty($financialTransactionIds)) {
+          $errors['export_format'] = 'There are no financial transactions in the batch, can not be exported.';
+        }
+        foreach ($financialTransactionIds as $financialTransactionId) {
+          $financialTransaction = new CRM_Fintrxn_FinancialTransaction($financialTransactionId);
+          $errorMessage = $financialTransaction->validateTransaction();
+          if (!empty($errorMessage)) {
+            break;
+          }
+        }
+        if (!empty($errorMessage)) {
+          $errors['export_format'] = 'There are still errors in the batch, so it can not be exported. To find out what the errors are, validate the batch from the list of batches';
+        }
+      } else {
+        throw new Exception('Could not find a batch id in the entry url in '.__METHOD__.', contact your system administrator!');
+      }
+    } else {
+      throw new Exception('Fields parameter does not contain an element named entryURL in '.__METHOD__.'contact your system administrator!');
+    }
+  }
 }

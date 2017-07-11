@@ -268,6 +268,10 @@ class CRM_Fintrxn_Generator {
     if (!isset($data['from_financial_account_id']) || empty($data['from_financial_account_id'])) {
       $data['from_financial_account_id'] = $this->_config->getDefaultCocoaFinancialAccountId();
     }
+    // fix for null value in fee amount, don't ask.....
+    if ($data['fee_amount'] == 'null') {
+      $data['fee_amount'] = 0;
+    }
     try {
       $financialTrxn = civicrm_api3('FinancialTrxn', 'create', $data);
       // now add entity

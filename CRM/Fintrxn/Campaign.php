@@ -16,9 +16,9 @@ class CRM_Fintrxn_Campaign {
   public static function validateForm($fields, &$errors) {
     $config = CRM_Fintrxn_Configuration::singleton();
     $mandatories = array(
-      'custom_'.$config->getCocoaProfitLossCustomField('id').'_-1',
-      'custom_'.$config->getCocoaCodeAcquisitionCustomField('id').'_-1',
-      'custom_'.$config->getCocoaCodeFollowCustomField('id').'_-1',);
+      'custom_'.$config->getCocoaProfitLossCustomField('id').'_1',
+      'custom_'.$config->getCocoaCodeAcquisitionCustomField('id').'_1',
+      'custom_'.$config->getCocoaCodeFollowCustomField('id').'_1',);
     foreach ($mandatories as $mandatory) {
       if (!isset($fields[$mandatory]) || empty($fields[$mandatory])) {
         $errors[$mandatory] = ts('This is a required field, you can not leave it empty!');

@@ -38,6 +38,9 @@ function fintrxn_civicrm_links($op, $objectName, $objectId, &$links, &$mask, &$v
  */
 function fintrxn_civicrm_validateForm($formName, &$fields, &$files, &$form, &$errors) {
   switch ($formName) {
+    case "CRM_Financial_Form_Export":
+      CRM_Fintrxn_Batch::validateForm($fields, $errors);
+      break;
     case "CRM_Campaign_Form_Campaign":
       CRM_Fintrxn_Campaign::validateForm($fields, $errors);
       break;
@@ -104,6 +107,10 @@ function fintrxn_civicrm_navigationMenu(&$params) {
  * @link https://docs.civicrm.org/dev/en/master/hooks/hook_civicrm_custom/
  */
 function fintrxn_civicrm_custom($op, $groupID, $entityID, &$params) {
+
+  $ehTxt = 'groupID coming into custom function in fintrxn.php is '.$groupID;
+  CRM_Core_DAO::executeQuery('INSERT INTO ehtst (message) VALUES(%1)', array(1 => array($ehTxt, 'String')));
+
   // process custom hook for cocoa codes
   CRM_Fintrxn_CocoaCode::custom($op, $groupID, $entityID, $params);
 }
