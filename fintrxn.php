@@ -58,10 +58,6 @@ function fintrxn_civicrm_validateForm($formName, &$fields, &$files, &$form, &$er
  * @link https://docs.civicrm.org/dev/en/master/hooks/hook_civicrm_buildForm/
  */
 function fintrxn_civicrm_buildForm($formName, &$form) {
-  $ehTxt = 'Form name is '.$formName;
-  CRM_Core_DAO::executeQuery('INSERT INTO ehtst (message) VALUES(%1)', array(1 => array($ehTxt, 'String')));
-
-
   if ($formName == 'CRM_Campaign_Form_Campaign') {
     // process buildForm hook for Campaign
     CRM_Fintrxn_Campaign::buildForm($form);
