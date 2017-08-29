@@ -16,15 +16,26 @@ class CRM_Fintrxn_Campaign {
   public static function validateForm($fields, &$errors) {
     $config = CRM_Fintrxn_Configuration::singleton();
     $mandatories = array(
-      'custom_'.$config->getCocoaProfitLossCustomField('id').'_1',
-      'custom_'.$config->getCocoaCodeAcquisitionCustomField('id').'_1',
-      'custom_'.$config->getCocoaCodeFollowCustomField('id').'_1',);
+      $config->getCocoaProfitLossCustomField('id'),
+      $config->getCocoaCodeAcquisitionCustomField('id'),
+      $config->getCocoaCodeFollowCustomField('id'),);
     foreach ($mandatories as $mandatory) {
-      if (!isset($fields[$mandatory]) || empty($fields[$mandatory])) {
-        $errors[$mandatory] = ts('This is a required field, you can not leave it empty!');
+      $mandatoryPresent = FALSE;
+      foreach ($fields as $fieldKey => $fieldValue) {
+        if (substr($fieldKey, 0, 7) == 'custom_') {
+          $parts = explode('_', $fieldKey);
+          if (isset($parts[1]) && $parts[1] == $mandatory) {
+            $mandatoryPresent = TRUE;
+            if (empty($fieldValue)) {
+              $errors[$fieldKey] = ts('EMPTY This is a required field, you can not leave it empty!');
+            }
+          }
+        }
+      }
+      if ($mandatoryPresent == FALSE) {
+        $errors[$fieldKey] = ts('FALSE This is a required field, you can not leave it empty!');
       }
     }
-    return;
   }
 
   /**
