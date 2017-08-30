@@ -268,9 +268,15 @@ class CRM_Fintrxn_Generator {
     if (!isset($data['from_financial_account_id']) || empty($data['from_financial_account_id'])) {
       $data['from_financial_account_id'] = $this->_config->getDefaultCocoaFinancialAccountId();
     }
-    // fix for null value in fee amount, don't ask.....
-    if ($data['fee_amount'] == 'null') {
-      $data['fee_amount'] = 0;
+    // fix for null value in fee and net amount, don't ask.....
+    $fixNullStrings = array(
+      'fee_amount',
+      'net_amount',
+    );
+    foreach ($fixNullStrings as $fixNullString) {
+      if ($data[$fixNullString] == 'null') {
+        $data[$fixNullString] = 0;
+      }
     }
     try {
       $financialTrxn = civicrm_api3('FinancialTrxn', 'create', $data);
@@ -278,7 +284,7 @@ class CRM_Fintrxn_Generator {
       civicrm_api3('EntityFinancialTrxn', 'create', $this->createEntityTransactionData($financialTrxn));
 
     } catch (CiviCRM_API3_Exception $ex) {
-      error_log('Could not create financial transaction and/or entity financial transaction in '.__METHOD__
+      CRM_Core_Error::debug_log_message('Could not create financial transaction and/or entity financial transaction in '.__METHOD__
         .', error message from API FinancialTrxn Create: '.$ex->getMessage());
     }
   }

@@ -12,28 +12,28 @@ class CRM_Fintrxn_Campaign {
    *
    * @param $fields
    * @param & $errors
+   * @param $form
    */
-  public static function validateForm($fields, &$errors) {
-    $config = CRM_Fintrxn_Configuration::singleton();
-    $mandatories = array(
-      $config->getCocoaProfitLossCustomField('id'),
-      $config->getCocoaCodeAcquisitionCustomField('id'),
-      $config->getCocoaCodeFollowCustomField('id'),);
-    foreach ($mandatories as $mandatory) {
-      $mandatoryPresent = FALSE;
-      foreach ($fields as $fieldKey => $fieldValue) {
-        if (substr($fieldKey, 0, 7) == 'custom_') {
-          $parts = explode('_', $fieldKey);
-          if (isset($parts[1]) && $parts[1] == $mandatory) {
-            $mandatoryPresent = TRUE;
-            if (empty($fieldValue)) {
-              $errors[$fieldKey] = ts('EMPTY This is a required field, you can not leave it empty!');
+  public static function validateForm($fields, &$errors, $form) {
+    $formAction = $form->getVar('_action');
+    if ($formAction != CRM_Core_Action::DELETE) {
+      $config = CRM_Fintrxn_Configuration::singleton();
+      $mandatories = array(
+        $config->getCocoaProfitLossCustomField('id'),
+        $config->getCocoaCodeAcquisitionCustomField('id'),
+        $config->getCocoaCodeFollowCustomField('id'),);
+      foreach ($mandatories as $mandatory) {
+        foreach ($fields as $fieldKey => $fieldValue) {
+          if (substr($fieldKey, 0, 7) == 'custom_') {
+            $parts = explode('_', $fieldKey);
+            if (isset($parts[1]) && $parts[1] == $mandatory) {
+              $mandatoryPresent = TRUE;
+              if (empty($fieldValue)) {
+                $errors[$fieldKey] = ts('This is a required field, you can not leave it empty!');
+              }
             }
           }
         }
-      }
-      if ($mandatoryPresent == FALSE) {
-        $errors[$fieldKey] = ts('FALSE This is a required field, you can not leave it empty!');
       }
     }
   }

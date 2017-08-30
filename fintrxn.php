@@ -41,7 +41,7 @@ function fintrxn_civicrm_validateForm($formName, &$fields, &$files, &$form, &$er
       CRM_Fintrxn_Batch::validateForm($fields, $errors);
       break;
     case "CRM_Campaign_Form_Campaign":
-      CRM_Fintrxn_Campaign::validateForm($fields, $errors);
+      CRM_Fintrxn_Campaign::validateForm($fields, $errors, $form);
       break;
     case "CRM_Contribute_Form_Contribution":
       if ($form->_action == CRM_Core_Action::ADD || $form->_action == CRM_Core_Action::UPDATE) {
