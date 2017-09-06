@@ -10,6 +10,21 @@
 
 require_once 'fintrxn.civix.php';
 
+/**
+ * Implements hook_civicrm_batchItems
+ *
+ * @link https://docs.civicrm.org/dev/en/master/hooks/hook_civicrm_batchItems/
+ */
+function fintrxn_civicrm_batchItems(&$results, &$items) {
+  // change batch items when exporting to meet aivl criteria
+  CRM_Fintrxn_Batch::batchItems($results, $items);
+}
+
+/**
+ * Implements hook_civicrm_pageRun
+ *
+ * @link https://docs.civicrm.org/dev/en/master/hooks/hook_civicrm_pageRun/
+ */
 function fintrxn_civicrm_pageRun(&$page) {
   $pageName = $page->getVar('_name');
   if ($pageName == 'CRM_Financial_Page_Batch') {

@@ -138,4 +138,42 @@ class CRM_Fintrxn_Batch {
       $values['bid'] = $objectId;
     }
   }
+  public static function batchItems ($results, &$items) {
+    // clean out items array
+    $items = array();
+    // get mapping from JSON file
+    $mapping = self::getExportMapping();
+    // go through all results
+    foreach ($results as $result) {
+      // split transaction date in year and month
+      $transactionDate = new DateTime($result['trxn_date']);
+      $result['trxn_year'] = $transactionDate->format('Y');
+      $result['trxn_month'] = $transactionDate->format('n');
+      // create item array based on mapping
+      $item = $mapping;
+      foreach ($item as $itemKey => $itemValue) {
+        if (isset($result[$itemValue])) {
+          $item[$itemKey] = $result[$itemValue];
+        }
+      }
+      $items[] = $item;
+    }
+  }
+
+  /**
+   * Method to get export mapping for batch export
+   *
+   * @return mixed
+   * @throws Exception
+   */
+  private static function getExportMapping() {
+    $resourcesPath = CRM_Fintrxn_Configuration::getDefaultResourcesPath();
+    $mappingJsonFile = $resourcesPath.'batch_export_mapping.json';
+    if (!file_exists($mappingJsonFile)) {
+      throw new Exception(ts('Could not load export mapping for batch export in '.__METHOD__
+        .', contact your system administrator!'));
+    }
+    $mappingJson = file_get_contents($mappingJsonFile);
+    return json_decode($mappingJson, true);
+  }
 }
