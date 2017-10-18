@@ -12,4 +12,16 @@
     <title>BatchValidate</title>
     <access_arguments>access CiviCRM</access_arguments>
   </item>
+  <item>
+    <path>civicrm/fintrxn/batch/assignopen</path>
+    <page_callback>CRM_Fintrxn_Batch::assignLatestOpen</page_callback>
+    <title>AssignLatestOpen</title>
+    <access_arguments>access CiviCRM, edit all manual batches</access_arguments>
+  </item>
+  <item>
+    <path>civicrm/fintrxn/batch/removeall</path>
+    <page_callback>CRM_Fintrxn_Batch::removeAllTrxn</page_callback>
+    <title>RemoveAllTrxn</title>
+    <access_arguments>access CiviCRM, edit all manual batches</access_arguments>
+  </item>
 </menu>

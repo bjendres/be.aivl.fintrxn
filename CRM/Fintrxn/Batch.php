@@ -121,19 +121,35 @@ class CRM_Fintrxn_Batch {
    * @param $values
    */
   public static function links($objectId, &$links, &$values) {
-    // add validate and remove export, close for open batches
+    // only for open batches
     if ($values['status'] == 1) {
+      // remove export and close
       foreach ($links as $linkKey => $linkValues) {
         if ($linkValues['name'] == 'Export' || $linkValues['name'] == 'Close') {
           unset($links[$linkKey]);
         }
       }
+      // add assign latest open and remove all
       $links[] = array(
         'name' => ts('Validate'),
         'url' => 'civicrm/fintrxn/page/batchvalidate',
         'title' => 'Validate Batch',
         'qs' => 'reset=1&bid=%%bid%%',
         'bit' => 'validate',
+      );
+      $links[] = array(
+        'name' => ts('Assign Latest Open'),
+        'url' => 'civicrm/fintrxn/batch/assignopen',
+        'title' => 'Assign Latest Open Transactions',
+        'qs' => 'bid=%%bid%%',
+        'bit' => 'assign open',
+      );
+      $links[] = array(
+        'name' => ts('Remove All Transactions'),
+        'url' => 'civicrm/fintrxn/batch/removeall',
+        'title' => 'Remove All Transactions',
+        'qs' => 'bid=%%bid%%',
+        'bit' => 'remove all',
       );
       $values['bid'] = $objectId;
     }
@@ -175,5 +191,80 @@ class CRM_Fintrxn_Batch {
     }
     $mappingJson = file_get_contents($mappingJsonFile);
     return json_decode($mappingJson, true);
+  }
+
+  /**
+   * Method to remove all financial transactions from an accounting batch
+   */
+  public static function removeAllTrxn() {
+    // retrieve batch id from request, only process if it is available and not empty
+    $requestValues = CRM_Utils_Request::exportValues();
+    if (isset($requestValues['bid']) && !empty($requestValues['bid'])) {
+      try {
+        $batchTransactions = civicrm_api3('EntityBatch', 'get', array(
+          'batch_id' => $requestValues['bid'],
+          'options' => array('limit' => 0),
+        ));
+        foreach ($batchTransactions['values'] as $batchTransaction) {
+          civicrm_api3('EntityBatch', 'delete', array(
+            'id' => $batchTransaction['id'],
+          ));
+        }
+      }
+      catch (CiviCRM_API3_Exception $ex) {
+      }
+    }
+    $url = CRM_Utils_System::url('civicrm/financial/financialbatches', 'reset=1&batchStatus=1', true);
+    CRM_Utils_System::redirect($url);
+  }
+
+  /**
+   * Method to add all unassigned financial transactions after the last assigned financial transaction to an
+   * accounting batch
+   */
+  public static function assignLatestOpen() {
+    // retrieve batch id from request, only process if it is available and not empty
+    $requestValues = CRM_Utils_Request::exportValues();
+    if (isset($requestValues['bid']) && !empty($requestValues['bid'])) {
+      // retrieve date of the latest assigned financial transaction
+      $latestAssignedDate = self::getLatestAssignedTransactionDate();
+      // now select all financial transactions that are not assigned yet and are later than the latest assigned
+      $query = "SELECT a.id 
+        FROM civicrm_financial_trxn a LEFT JOIN civicrm_entity_batch b ON a.id = b.entity_id
+        WHERE trxn_date > %1 AND batch_id IS NULL";
+      $params = array(
+        1 => array($latestAssignedDate, 'String'),
+      );
+      CRM_Core_Error::debug('query', $query);
+      CRM_Core_Error::debug('params', $params);
+      $dao = CRM_Core_DAO::executeQuery($query, $params);
+      while ($dao->fetch()) {
+        try {
+          civicrm_api3('EntityBatch', 'create', array(
+            'entity_table' => 'civicrm_financial_trxn',
+            'entity_id' => $dao->id,
+            'batch_id' => $requestValues['bid']
+          ));
+        }
+        catch (CiviCRM_API3_Exception $ex) {
+        }
+      }
+    }
+    $url = CRM_Utils_System::url('civicrm/batchtransaction', 'reset=1&bid='.$requestValues['bid'], true);
+    CRM_Utils_System::redirect($url);
+  }
+
+  /**
+   * Method to get the latest transaction date assigned to a batch
+   *
+   * @return null|string
+   */
+  private static function getLatestAssignedTransactionDate() {
+    $query = "SELECT MAX(trxn_date)
+      FROM civicrm_entity_batch a JOIN civicrm_financial_trxn b on a.entity_id = b.id
+      WHERE a.entity_table = %1";
+    return CRM_Core_DAO::singleValueQuery($query, array(
+      1 => array('civicrm_financial_trxn', 'String'),
+    ));
   }
 }
