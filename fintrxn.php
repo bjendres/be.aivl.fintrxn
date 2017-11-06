@@ -31,6 +31,9 @@ function fintrxn_civicrm_pageRun(&$page) {
     CRM_Core_Region::instance('page-body')->add(array(
       'template' => 'CRM/Fintrxn/Page/RemoveUnwantedTasks.tpl'
     ));
+    CRM_Core_Region::instance('page-body')->add(array(
+      'template' => 'CRM/Fintrxn/Page/BatchDescription.tpl'
+    ));
   }
 }
 
