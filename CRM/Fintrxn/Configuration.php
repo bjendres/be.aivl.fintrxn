@@ -41,11 +41,20 @@ class CRM_Fintrxn_Configuration {
   private $_filterAcquisitionYear = NULL;
   private $_filterFollowingYears = NULL;
   private $_defaultCocoaFinancialAccountId = NULL;
+  private $_civicrmVersion = NULL;
 
   /**
    * CRM_Fintrxn_Configuration constructor.
    */
   function __construct() {
+    try {
+      $this->_civicrmVersion = civicrm_api3('Domain', 'getvalue', array(
+        'return' => "version",
+      ));
+    }
+    catch (CiviCRM_API3_Exception $ex) {
+      CRM_Core_Error::createError('Could not verify the CiviCRM version using API Domain getvalue (extension be.aivl.fintrxn assumes only 1 domain)');
+    }
     $this->setCocoaCustomGroup();
     $this->setContributionCustomGroup();
     $this->setCocoaCustomFields();
@@ -390,10 +399,31 @@ class CRM_Fintrxn_Configuration {
     }
   }
 
+  /**
+   * Method to get the default resources path
+   *
+   * @return string
+   * @throws CiviCRM_API3_Exception
+   * @throws Exception
+   */
   public static function getDefaultResourcesPath() {
-    // TODO: erik: find a way to get the path w/o init config (for configitems)
-    $settings = civicrm_api3('Setting', 'Getsingle', array());
-    $resourcesPath = $settings['extensionsDir'].DIRECTORY_SEPARATOR.'be.aivl.fintrxn'.DIRECTORY_SEPARATOR.'resources'.DIRECTORY_SEPARATOR;
+    try {
+      $civicrmVersion = civicrm_api3('Domain', 'getvalue', array(
+        'return' => "version",
+      ));
+    }
+    catch (CiviCRM_API3_Exception $ex) {
+      CRM_Core_Error::createError('Could not verify the CiviCRM version using API Domain getvalue (extension be.aivl.fintrxn assumes only 1 domain)');
+    }
+
+    // retrieve resources path 4.7 or 4.6 and earlier
+    if ($civicrmVersion > 4.6) {
+      $container = CRM_Extension_System::singleton()->getFullContainer();
+      $resourcesPath = $container->getPath('be.aivl.fintrxn') .DIRECTORY_SEPARATOR.'resources'.DIRECTORY_SEPARATOR;
+    } else {
+      $settings = civicrm_api3('Setting', 'Getsingle', array());
+      $resourcesPath = $settings['extensionsDir'].DIRECTORY_SEPARATOR.'be.aivl.fintrxn'.DIRECTORY_SEPARATOR.'resources'.DIRECTORY_SEPARATOR;
+    }
     if (!is_dir($resourcesPath) || !file_exists($resourcesPath)) {
       throw new Exception(ts('Could not find the folder '.$resourcesPath
         .' which is required for extension be.aivl.fintrxn in '.__METHOD__
@@ -408,8 +438,13 @@ class CRM_Fintrxn_Configuration {
    * @throws Exception
    */
   private function setResourcesPath() {
-    $settings = civicrm_api3('Setting', 'Getsingle', array());
-    $resourcesPath = $settings['extensionsDir'].DIRECTORY_SEPARATOR.'be.aivl.fintrxn'.DIRECTORY_SEPARATOR.'resources'.DIRECTORY_SEPARATOR;
+    if ($this->_civicrmVersion > 4.6) {
+      $container = CRM_Extension_System::singleton()->getFullContainer();
+      $resourcesPath = $container->getPath('be.aivl.fintrxn') .DIRECTORY_SEPARATOR.'resources'.DIRECTORY_SEPARATOR;
+    } else {
+      $settings = civicrm_api3('Setting', 'Getsingle', array());
+      $resourcesPath = $settings['extensionsDir'] . DIRECTORY_SEPARATOR . 'be.aivl.fintrxn' . DIRECTORY_SEPARATOR . 'resources' . DIRECTORY_SEPARATOR;
+    }
     if (!is_dir($resourcesPath) || !file_exists($resourcesPath)) {
       throw new Exception(ts('Could not find the folder '.$resourcesPath
         .' which is required for extension be.aivl.fintrxn in '.__METHOD__

@@ -154,6 +154,14 @@ class CRM_Fintrxn_Batch {
       $values['bid'] = $objectId;
     }
   }
+
+  /**
+   * Implements hook_civicrm_batchItems
+   *
+   * @param $results
+   * @param $items
+   * @throws Exception
+   */
   public static function batchItems ($results, &$items) {
     // clean out items array
     $items = array();
@@ -161,15 +169,27 @@ class CRM_Fintrxn_Batch {
     $mapping = self::getExportMapping();
     // go through all results
     foreach ($results as $result) {
-      // split transaction date in year and month
-      $transactionDate = new DateTime($result['trxn_date']);
-      $result['trxn_year'] = $transactionDate->format('Y');
-      $result['trxn_month'] = $transactionDate->format('n');
       // create item array based on mapping
       $item = $mapping;
+      // retrieve additional info
+      $additionalInfo = CRM_Fintrxn_Utils::getAdditionalBatchInfoForContribution($result['contribution_id']);
       foreach ($item as $itemKey => $itemValue) {
-        if (isset($result[$itemValue])) {
-          $item[$itemKey] = $result[$itemValue];
+        switch ($itemKey) {
+          case 'Campaign ID':
+            if ($additionalInfo['campaign_id']) {
+              $item[$itemKey] = $additionalInfo['campaign_id'];
+            }
+            break;
+          case 'Financial Type':
+            if ($additionalInfo['financial_type']) {
+              $item[$itemKey] = $additionalInfo['financial_type'];
+            }
+            break;
+          default:
+            if (isset($result[$itemValue])) {
+              $item[$itemKey] = $result[$itemValue];
+            }
+            break;
         }
       }
       $items[] = $item;
@@ -235,8 +255,6 @@ class CRM_Fintrxn_Batch {
       $params = array(
         1 => array($latestAssignedDate, 'String'),
       );
-      CRM_Core_Error::debug('query', $query);
-      CRM_Core_Error::debug('params', $params);
       $dao = CRM_Core_DAO::executeQuery($query, $params);
       while ($dao->fetch()) {
         try {

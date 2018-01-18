@@ -175,7 +175,43 @@ class CRM_Fintrxn_Utils {
     catch (CiviCRM_API3_Exception $ex) {
       return NULL;
     }
+  }
 
+  /**
+   * Method to get the campaign id for a contribution
+   *
+   * @param $contributionId
+   * @return array
+   */
+  public static function getAdditionalBatchInfoForContribution($contributionId) {
+    $result = array();
+    try {
+      $contribution = civicrm_api3('Contribution', 'getsingle', array(
+        'id' => $contributionId,
+      ));
+      if ($contribution['contribution_campaign_id']) {
+        $result['campaign_id'] = $contribution['contribution_campaign_id'];
+      } else {
+        if ($contribution['campaign_id']) {
+          $result['campaign_id'] = $contribution['campaign_id'];
+        }
+      }
+      if ($contribution['financial_type']) {
+        $result['financial_type'] = $contribution['financial_type'];
+      } else {
+        if ($contribution['financial_type_id']) {
+          $result['financial_type'] = civicrm_api3('FinancialType', 'getvalue', array(
+            'id' => $contribution['financial_type_id'],
+            'return' => 'name',
+          ));
+        }
+      }
+    }
+    catch (CiviCRM_API3_Exception $ex) {
+      CRM_Core_Error::debug_log_message('Could not retrieve contribution '.$contributionId
+        .' using API Contribution getsingle (extension be.aivl.fintrxn)');
+    }
+    return $result;
   }
 
 }
