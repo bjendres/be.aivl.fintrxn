@@ -222,6 +222,7 @@ class CRM_Fintrxn_Generator {
       $date = new DateTime();
     }
     return array(
+      'contribution_id'       => CRM_Utils_Array::value('id', $contributionData),
       'trxn_date'             => $date->format('YmdHis'),
       'total_amount'          => CRM_Utils_Array::value('total_amount', $contributionData),
       'fee_amount'            => CRM_Utils_Array::value('fee_amount', $contributionData),
