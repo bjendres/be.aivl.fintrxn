@@ -53,13 +53,15 @@ function civicrm_api3_cocoa_Migrate($params) {
       foreach ($cocoaColumnNames as $key => $property) {
         $data[$key] = $dao->$property;
       }
-      $result = $newCocoa->migrate($data);
-      if ($result['is_error'] == TRUE) {
-        $logger->logMessage('Error', $result['error_message']);
-        $returnValues[] = 'fout bij overzetten cocoa codes voor campagne ' .$dao->entity_id;
-      }
-      else {
-        $returnValues[] = 'cocoa codes overgezet voor campagne ' . $dao->entity_id;
+      if (!empty($data['cocoa_year']) || !empty($data['cocoa_cc_year']) || !empty($data['cocoa_cc_later']) || !empty($data['cocoa_pl'])) {
+        $result = $newCocoa->migrate($data);
+        if ($result['is_error'] == TRUE) {
+          $logger->logMessage('Error', $result['error_message']);
+          $returnValues[] = 'fout bij overzetten cocoa codes voor campagne ' .$dao->entity_id;
+        }
+        else {
+          $returnValues[] = 'cocoa codes overgezet voor campagne ' . $dao->entity_id;
+        }
       }
     }
   }
