@@ -11,6 +11,9 @@ class CRM_Fintrxn_CocoaCode {
   private $_campaignAccountTypeCode = NULL;
   private $_ibanAccountTypeCode = NULL;
   private $_plTypeCode = NULL;
+  private $_defaultCocoaAcquisition = NULL;
+  private $_defaultCocoaLater = NULL;
+  private $_defaultCocoaPl = NULL;
 
   /**
    * CRM_Fintrxn_CocoaCode constructor.
@@ -296,5 +299,176 @@ class CRM_Fintrxn_CocoaCode {
         }
       }
     }
+  }
+
+  /**
+   * Method to migrate old cocoa data into the new ones
+   *
+   * @param $data
+   * @return array
+   */
+  public function migrate($data) {
+    $this->setDefaultCocoaCodes();
+    if ($this->isValidCocoaYear($data['cocoa_year']) == FALSE) {
+      return array(
+        'is_error' => 1,
+        'error_message' => ts('Invalid year of acquisition : ' . $data['cocoa_year']),
+        );
+    }
+    $data['cocoa_cc_year'] = $this->findNewCocoaCode($data['cocoa_cc_year'], 'acquisition');
+    $data['cocoa_cc_later'] = $this->findNewCocoaCode($data['cocoa_cc_later'], 'later');
+    $data['cocoa_pl'] = $this->findNewCocoaPl($data['cocoa_pl']);
+    if ($this->cocoaCustomDataAlreadyExists($data['campaign_id']) == FALSE) {
+      $this->writeNewCocoaData($data);
+      return array(
+        'is_error' => 0,
+      );
+    }
+    else {
+      return array(
+        'is_error' => 1,
+        'error_message' => ts('New Cocoa Codes already there for campaign  ' . $data->campaign_id),
+      );
+    }
+  }
+
+  /**
+   * Method to write the new cocoa custom data from the old one
+   *
+   * @param $data
+   */
+  private function writeNewCocoaData($data) {
+    $config = CRM_Fintrxn_Configuration::singleton();
+    $queryFields = array(
+      $config->getCocoaAcquisitionYearCustomField('column_name'),
+      $config->getCocoaCodeFollowCustomField('column_name'),
+      $config->getCocoaProfitLossCustomField('column_name'),
+      $config->getCocoaCodeAcquisitionCustomField('column_name'),
+    );
+    $queryParams = array(
+      1 => array($data['campaign_id'], 'Integer'),
+      2 => array($data['cocoa_year'], 'String'),
+      3 => array($data['cocoa_cc_later'], 'String'),
+      4 => array($data['cocoa_pl'], 'String'),
+      5 => array($data['cocoa_cc_year'], 'String'),
+    );
+    $query = 'INSERT INTO '. $config->getCocoaCustomGroup('table_name') . ' (entity_id, ' . implode(",", $queryFields)
+      . ') VALUES(%1, %2, %3, %4, %5)';
+    CRM_Core_DAO::executeQuery($query, $queryParams);
+  }
+
+  /**
+   * Method to check if the new custom data already exist
+   *
+   * @param $campaignId
+   * @return bool
+   */
+  private function cocoaCustomDataAlreadyExists($campaignId) {
+    $config = CRM_Fintrxn_Configuration::singleton();
+    $query = "SELECT COUNT(*) FROM " . $config->getCocoaCustomGroup('table_name') . " WHERE entity_id = %1";
+    $count = CRM_Core_DAO::singleValueQuery($query, array(1 => array($campaignId, 'Integer')));
+    if ($count > 0) {
+      return TRUE;
+    }
+    else {
+      return FALSE;
+    }
+
+  }
+
+  /**
+   * Method to set the default cocoa codes for cost centre and profit and loss
+   */
+  private function setDefaultCocoaCodes() {
+    $config = CRM_Fintrxn_Configuration::singleton();
+    try {
+      $this->_defaultCocoaPl = civicrm_api3('OptionValue', 'getvalue', array(
+        'option_group_id' => $config->getCocoaProfitLossOptionGroupId(),
+        'is_default' => 1,
+        'return' => 'value',
+      ));
+      $this->_defaultCocoaAcquisition = civicrm_api3('OptionValue', 'getvalue', array(
+        'option_group_id' => $config->getCocoaCostCentreOptionGroupId(),
+        'filter' => $config->getFilterAcquisitionYear(),
+        'is_default' => 1,
+        'return' => 'value'
+      ));
+      $this->_defaultCocoaLater = civicrm_api3('OptionValue', 'getvalue', array(
+        'option_group_id' => $config->getCocoaCostCentreOptionGroupId(),
+        'filter' => $config->getFilterFollowingYears(),
+        'is_default' => 1,
+        'return' => 'value'
+      ));
+    }
+    catch (CiviCRM_API3_Exception $ex) {
+    }
+  }
+
+  /**
+   * Method to find the new cocoa code or use the default one
+   *
+   * @param $oldCode
+   * @param $type
+   * @return null
+   */
+  private function findNewCocoaCode($oldCode, $type) {
+    $config = CRM_Fintrxn_Configuration::singleton();
+    try {
+      $count = civicrm_api3('OptionValue', 'getcount', array(
+        'option_group_id' => $config->getCocoaCostCentreOptionGroupId(),
+        'value' => $oldCode,
+      ));
+      if ($count > 0) {
+        return $oldCode;
+      }
+    }
+    catch (CiviCRM_API3_Exception $ex) {
+    }
+    if ($type == 'acquisition') {
+      return $this->_defaultCocoaAcquisition;
+    }
+    else {
+      return $this->_defaultCocoaLater;
+    }
+  }
+
+  /**
+   * Method to find the new cocoa code or use the default one
+   *
+   * @param $oldCode
+   * @return null
+   */
+  private function findNewCocoaPl($oldCode) {
+    $config = CRM_Fintrxn_Configuration::singleton();
+    try {
+      $count = civicrm_api3('OptionValue', 'getcount', array(
+        'option_group_id' => $config->getCocoaProfitLossOptionGroupId(),
+        'value' => $oldCode,
+      ));
+      if ($count > 0) {
+        return $oldCode;
+      }
+    }
+    catch (CiviCRM_API3_Exception $ex) {
+    }
+    return $this->_defaultCocoaPl;
+  }
+
+  /**
+   * Method to test the imported cocoa year
+   *
+   * @param $cocoaYear
+   * @return bool
+   */
+  private function isValidCocoaYear($cocoaYear) {
+    // has to be numeric
+    if (!is_numeric($cocoaYear)) {
+      return FALSE;
+    }
+    // should start with 19 or 20
+    if (substr($cocoaYear,0,2) != "19" && substr($cocoaYear, 0, 2) != "20") {
+      return FALSE;
+    }
+    return TRUE;
   }
 }
