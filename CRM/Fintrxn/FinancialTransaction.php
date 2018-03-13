@@ -206,4 +206,149 @@ class CRM_Fintrxn_FinancialTransaction {
       return CRM_Fintrxn_Utils::getFinancialAccountForCampaign($contribution['contribution_campaign_id'], $contribution['receive_date']);
     }
   }
+
+  /**
+   * Method to rebuild financial transactions for contributions from a start date
+   *
+   * @param $params
+   * @return array
+   */
+  public static function createHistory($params) {
+    $startDate = new DateTime($params['start_date']);
+    $extConfig = CRM_Fintrxn_Configuration::singleton();
+    $returnValues = array();
+    // error if no start_date
+    if (!isset($params['start_date']) || empty($params['start_date'])) {
+      $returnValues[] = ts('You did not specify a start date, no historic financial transactions created');
+      return $returnValues;
+    }
+    // retrieve all completed, refunded, cancelled or failed contributions from the start date that do not have financial transactions
+    // for each contribution, generate financial transactions into a temporary table
+    $count = 0;
+    $dao = self::getHistoricContributions($startDate);
+    while ($dao->fetch()) {
+      if (self::alreadyHasFinTrxn($dao->id) == FALSE) {
+        $generatedObjectRef = self::generateObjectRefHistory($dao, 'create');
+        $createValues = self::generateCreateValues($dao);
+        CRM_Fintrxn_Generator::create('create', $createValues, $dao->id);
+        CRM_Fintrxn_Generator::generate('create', $dao->id, $generatedObjectRef);
+        // if status is not completed, to an edit with same data
+        if ($dao->contribution_status_id != $extConfig->getCompletedContributionStatusId()) {
+          $generatedObjectRef = self::generateObjectRefHistory($dao, 'edit');
+          CRM_Fintrxn_Generator::generate('edit', $dao->id, $generatedObjectRef);
+        }
+        $count++;
+      }
+    }
+    $returnValues[] = $count . ' financial transactions generated';
+    // finally check if there are still historical ones to create
+    return $returnValues;
+  }
+
+  /**
+   * Method to generate the create values (pretending it is an array as per civicrm_pre hook, including the custom fields
+   *
+   * @param CRM_Core_DAO $dao
+   * @return array
+   */
+  private static function generateCreateValues($dao) {
+    $result = CRM_Fintrxn_Utils::moveDaoToArray($dao);
+    // add custom fields with the correct pattern
+    $extConfig = CRM_Fintrxn_Configuration::singleton();
+    $customGroup = $extConfig->getContributionCustomGroup();
+    if ($customGroup) {
+      $query = "SELECT * FROM " . $customGroup['table_name'] . " WHERE entity_id = %1";
+      $customData = CRM_Core_DAO::executeQuery($query, array(
+        1 => array($dao->id, 'Integer'),
+      ));
+      if ($customData->fetch()) {
+        $customFields = $extConfig->getContributionCustomFields();
+        $rows = array();
+        foreach ($customFields as $customFieldId => $customField) {
+          $property = $customField['column_name'];
+          if (isset($customData->$property)) {
+            $rows[$customFieldId][$customData->id]['value'] = $customData->$property;
+          }
+        }
+      }
+    }
+    if ($rows) {
+      $result['custom'] = $rows;
+    }
+    return $result;
+  }
+
+  /**
+   * Method to generate the object ref object for the fintrxn generator for historic creation
+   * - if contribution_status_id = completed, dao object is good enough
+   * - if contribution_status_id != completed:
+   *   - if operation is create, change the status to completed so an initial fin trxn is created as if it was a new one
+   *   - if operation is edit, keep the status so the generator processes as if it was a UI edit
+   *
+   * @param $dao
+   * @param $operation
+   * @return CRM_Core_DAO
+   */
+  private static function generateObjectRefHistory($dao, $operation) {
+    $extConfig = CRM_Fintrxn_Configuration::singleton();
+    if ($dao->contribution_status_id == $extConfig->getCompletedContributionStatusId()) {
+      return $dao;
+    }
+    else {
+      if ($operation == 'edit') {
+        return $dao;
+      }
+      else {
+        $result = $dao;
+        $result-> contribution_status_id = $extConfig->getCompletedContributionStatusId();
+        return $result;
+      }
+    }
+  }
+
+  /**
+   * Method to check if a contribution already has a new financial transaction
+   *
+   * @param $contributionId
+   * @return bool
+   */
+  private static function alreadyHasFinTrxn($contributionId) {
+    $query = "SELECT COUNT(*)
+      FROM civicrm_entity_financial_trxn ent
+      JOIN civicrm_financial_trxn trx ON trx.id = ent.financial_trxn_id
+      WHERE ent.entity_id = %1 AND ent.entity_table = %2 AND trx.check_number = %3";
+    $countTrxn = CRM_Core_DAO::singleValueQuery($query, array(
+      1 => array($contributionId, 'Integer'),
+      2 => array('civicrm_contribution', 'String'),
+      3 => array('AIVL fintrxn', 'String'),
+    ));
+    if ($countTrxn > 0) {
+      return TRUE;
+    }
+    return FALSE;
+  }
+
+  /**
+   * Method to get historic contributions from a start date to generate fin trxn for
+   *
+   * @param $startDate
+   * @return CRM_Core_DAO|object
+   */
+  private static function getHistoricContributions($startDate) {
+    $extConfig = CRM_Fintrxn_Configuration::singleton();
+    if (!$startDate instanceof DateTime) {
+      $startDate = new DateTime($startDate);
+    }
+    $query = "CREATE TEMPORARY TABLE IF NOT EXISTS temp_contributions AS (SELECT * 
+      FROM civicrm_contribution
+      WHERE receive_date >= %1 AND contribution_status_id IN (%2, %3, %4, %5))";
+    CRM_Core_DAO::executeQuery($query, array(
+      1 => array($startDate->format('Y-m-d') . ' 00:00:00', 'String'),
+      2 => array($extConfig->getCancelContributionStatusId(), 'Integer'),
+      3 => array($extConfig->getCompletedContributionStatusId(), 'Integer'),
+      4 => array($extConfig->getFailedContributionStatusId(), 'Integer'),
+      5 => array($extConfig->getRefundContributionStatusId(), 'Integer'),
+    ));
+    return CRM_Core_DAO::executeQuery('SELECT * FROM temp_contributions');
+  }
 }

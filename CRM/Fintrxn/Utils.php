@@ -214,4 +214,26 @@ class CRM_Fintrxn_Utils {
     return $result;
   }
 
+  /**
+   * Method om dao in array te stoppen en de 'overbodige' data er uit te slopen
+   *
+   * @param  $dao
+   * @return array
+   */
+  public static function moveDaoToArray($dao) {
+    $ignores = array('N', 'id', 'entity_id');
+    $columns = get_object_vars($dao);
+    // first remove all columns starting with _
+    foreach ($columns as $key => $value) {
+      if (substr($key, 0, 1) == '_') {
+        unset($columns[$key]);
+      }
+      if (in_array($key, $ignores)) {
+        unset($columns[$key]);
+      }
+    }
+    return $columns;
+  }
+
+
 }

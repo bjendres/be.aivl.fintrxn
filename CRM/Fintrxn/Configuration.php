@@ -259,6 +259,15 @@ class CRM_Fintrxn_Configuration {
   }
 
   /**
+   * Getter for contribution custom group
+   *
+   * @return null
+   */
+  public function getContributionCustomGroup() {
+    return $this->_contributionCustomGroup;
+  }
+
+  /**
    * Getter for cocoa acquisition year custom field
    *
    * @param string $key (custom field column to return)
@@ -271,7 +280,7 @@ class CRM_Fintrxn_Configuration {
   /**
    * Getter for fundraisingCampaignType
    *
-   * @return string
+   * @return array
    */
   public function getFundraisingCampaignType() {
     return $this->_fundraisingCampaignType;
