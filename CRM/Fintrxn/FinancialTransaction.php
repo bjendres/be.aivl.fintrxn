@@ -225,7 +225,7 @@ class CRM_Fintrxn_FinancialTransaction {
     // retrieve all completed, refunded, cancelled or failed contributions from the start date that do not have financial transactions
     // for each contribution, generate financial transactions into a temporary table
     $count = 0;
-    $dao = self::getHistoricContributions($startDate);
+    $dao = CRM_Core_DAO::executeQuery("SELECT * FROM hist_fintrnx_contri LIMIT 5000");
     while ($dao->fetch()) {
       if (self::alreadyHasFinTrxn($dao->id) == FALSE) {
         $generatedObjectRef = self::generateObjectRefHistory($dao, 'create');
@@ -239,9 +239,18 @@ class CRM_Fintrxn_FinancialTransaction {
         }
         $count++;
       }
+      // delete hist record
+      CRM_Core_DAO::executeQuery("DELETE FROM hist_fintrnx_contri WHERE id = %1", array(1 => array($dao->id, 'Integer')));
     }
     $returnValues[] = $count . ' financial transactions generated';
     // finally check if there are still historical ones to create
+    $stillToGo = CRM_Core_DAO::singleValueQuery("SELECT COUNT(*) FROM hist_fintrnx_contri");
+    if ($stillToGo > 0) {
+      $returnValues[] = 'Still ' .$stillToGo . ' contributions to process, run job again!';
+    }
+    else {
+      $returnValues[] = "All contributions processed.";
+    }
     return $returnValues;
   }
 
@@ -329,26 +338,60 @@ class CRM_Fintrxn_FinancialTransaction {
   }
 
   /**
-   * Method to get historic contributions from a start date to generate fin trxn for
+   * Method to create and populate table for historic financial transactions
    *
-   * @param $startDate
-   * @return CRM_Core_DAO|object
+   * @param array $params
    */
-  private static function getHistoricContributions($startDate) {
-    $extConfig = CRM_Fintrxn_Configuration::singleton();
-    if (!$startDate instanceof DateTime) {
-      $startDate = new DateTime($startDate);
+  public static function historicTable($params) {
+    if (!CRM_Core_DAO::checkTableExists('hist_fintrnx_contri')) {
+      CRM_Core_DAO::executeQuery("CREATE TABLE hist_fintrnx_contri (
+        id int(10) UNSIGNED NOT NULL ,
+        contact_id int(10) UNSIGNED NOT NULL,
+        financial_type_id int(10) UNSIGNED DEFAULT NULL,
+        contribution_page_id int(10) UNSIGNED DEFAULT NULL,
+        payment_instrument_id int(10) UNSIGNED DEFAULT NULL,
+        receive_date datetime DEFAULT NULL,
+        non_deductible_amount decimal(20,2) DEFAULT '0.00',
+        total_amount decimal(20,2) NOT NULL,
+        fee_amount decimal(20,2) DEFAULT NULL,
+        net_amount decimal(20,2) DEFAULT NULL,
+        trxn_id varchar(255) COLLATE utf8_unicode_ci DEFAULT NULL,
+        invoice_id varchar(255) COLLATE utf8_unicode_ci DEFAULT NULL,
+        currency varchar(3) COLLATE utf8_unicode_ci DEFAULT NULL,
+        cancel_date datetime DEFAULT NULL,
+        cancel_reason text COLLATE utf8_unicode_ci,
+        receipt_date datetime DEFAULT NULL,
+        thankyou_date datetime DEFAULT NULL,
+        source varchar(255) COLLATE utf8_unicode_ci DEFAULT NULL,
+        amount_level text COLLATE utf8_unicode_ci,
+        contribution_recur_id int(10) UNSIGNED DEFAULT NULL,
+        is_test tinyint(4) DEFAULT '0',
+        is_pay_later tinyint(4) DEFAULT '0',
+        contribution_status_id int(10) UNSIGNED DEFAULT '1',
+        address_id int(10) UNSIGNED DEFAULT NULL,
+        check_number varchar(255) COLLATE utf8_unicode_ci DEFAULT NULL,
+        campaign_id int(10) UNSIGNED DEFAULT NULL,
+        tax_amount decimal(20,2) DEFAULT NULL,
+        creditnote_id varchar(255) COLLATE utf8_unicode_ci DEFAULT NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;");
+      // now populate table
+      $extConfig = CRM_Fintrxn_Configuration::singleton();
+      $startDate = new DateTime($params['start_date']);
+      if (!$startDate instanceof DateTime) {
+        $startDate = new DateTime($startDate);
+      }
+      $query = "INSERT INTO hist_fintrnx_contri (SELECT id, contact_id, financial_type_id, contribution_page_id, payment_instrument_id, 
+        receive_date, non_deductible_amount, total_amount, fee_amount, net_amount, trxn_id, invoice_id, currency, cancel_date,
+        cancel_reason, receipt_date, thankyou_date, source, amount_level, contribution_recur_id, is_test, is_pay_later, contribution_status_id,
+        address_id, check_number, campaign_id, tax_amount, creditnote_id 
+        FROM civicrm_contribution WHERE receive_date >= %1 AND contribution_status_id IN (%2, %3, %4, %5))";
+      CRM_Core_DAO::executeQuery($query, array(
+        1 => array($startDate->format('Y-m-d') . ' 00:00:00', 'String'),
+        2 => array($extConfig->getCancelContributionStatusId(), 'Integer'),
+        3 => array($extConfig->getCompletedContributionStatusId(), 'Integer'),
+        4 => array($extConfig->getFailedContributionStatusId(), 'Integer'),
+        5 => array($extConfig->getRefundContributionStatusId(), 'Integer'),
+      ));
     }
-    $query = "CREATE TEMPORARY TABLE IF NOT EXISTS temp_contributions AS (SELECT * 
-      FROM civicrm_contribution
-      WHERE receive_date >= %1 AND contribution_status_id IN (%2, %3, %4, %5))";
-    CRM_Core_DAO::executeQuery($query, array(
-      1 => array($startDate->format('Y-m-d') . ' 00:00:00', 'String'),
-      2 => array($extConfig->getCancelContributionStatusId(), 'Integer'),
-      3 => array($extConfig->getCompletedContributionStatusId(), 'Integer'),
-      4 => array($extConfig->getFailedContributionStatusId(), 'Integer'),
-      5 => array($extConfig->getRefundContributionStatusId(), 'Integer'),
-    ));
-    return CRM_Core_DAO::executeQuery('SELECT * FROM temp_contributions');
   }
 }
