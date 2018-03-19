@@ -214,7 +214,6 @@ class CRM_Fintrxn_FinancialTransaction {
    * @return array
    */
   public static function createHistory($params) {
-    $startDate = new DateTime($params['start_date']);
     $extConfig = CRM_Fintrxn_Configuration::singleton();
     $returnValues = array();
     // error if no start_date
@@ -225,7 +224,7 @@ class CRM_Fintrxn_FinancialTransaction {
     // retrieve all completed, refunded, cancelled or failed contributions from the start date that do not have financial transactions
     // for each contribution, generate financial transactions into a temporary table
     $count = 0;
-    $dao = CRM_Core_DAO::executeQuery("SELECT * FROM hist_fintrnx_contri LIMIT 5000");
+    $dao = CRM_Core_DAO::executeQuery("SELECT * FROM hist_fintrnx_contri LIMIT 2500");
     while ($dao->fetch()) {
       if (self::alreadyHasFinTrxn($dao->id) == FALSE) {
         $generatedObjectRef = self::generateObjectRefHistory($dao, 'create');
@@ -249,6 +248,8 @@ class CRM_Fintrxn_FinancialTransaction {
       $returnValues[] = 'Still ' .$stillToGo . ' contributions to process, run job again!';
     }
     else {
+      // drop table
+      CRM_Core_DAO::executeQuery("DROP TABLE hist_fintrnx_contri");
       $returnValues[] = "All contributions processed.";
     }
     return $returnValues;

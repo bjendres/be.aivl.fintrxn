@@ -29,8 +29,13 @@ function _civicrm_api3_financial_trxn_History_spec(&$spec) {
  * @throws API_Exception
  */
 function civicrm_api3_financial_trxn_History($params) {
-  // create history table if not exists
-  CRM_Fintrxn_FinancialTransaction::historicTable($params);
-  $returnValues = CRM_Fintrxn_FinancialTransaction::createHistory($params);
+  if (!CRM_Core_DAO::checkTableExists('hist_fintrnx_contri')) {
+    // create history table if not exists
+    CRM_Fintrxn_FinancialTransaction::historicTable($params);
+    $returnValues[] = 'Tabel voor historische contributies aangemaakt, draai job opnieuw om transacties te genereren';
+  }
+  else {
+    $returnValues = CRM_Fintrxn_FinancialTransaction::createHistory($params);
+  }
   return civicrm_api3_create_success($returnValues, $params, 'FinancialTrxn', 'History');
 }
