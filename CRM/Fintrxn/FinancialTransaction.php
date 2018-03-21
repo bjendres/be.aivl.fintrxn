@@ -221,8 +221,6 @@ class CRM_Fintrxn_FinancialTransaction {
       $returnValues[] = ts('You did not specify a start date, no historic financial transactions created');
       return $returnValues;
     }
-    // retrieve all completed, refunded, cancelled or failed contributions from the start date that do not have financial transactions
-    // for each contribution, generate financial transactions into a temporary table
     $count = 0;
     $dao = CRM_Core_DAO::executeQuery("SELECT * FROM hist_fintrnx_contri LIMIT 2500");
     while ($dao->fetch()) {
@@ -282,7 +280,7 @@ class CRM_Fintrxn_FinancialTransaction {
         }
       }
     }
-    if ($rows) {
+    if (isset($rows) && !empty($rows)) {
       $result['custom'] = $rows;
     }
     return $result;
@@ -310,7 +308,7 @@ class CRM_Fintrxn_FinancialTransaction {
       }
       else {
         $result = $dao;
-        $result-> contribution_status_id = $extConfig->getCompletedContributionStatusId();
+        $result->contribution_status_id = $extConfig->getCompletedContributionStatusId();
         return $result;
       }
     }
