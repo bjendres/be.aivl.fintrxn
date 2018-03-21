@@ -66,18 +66,42 @@ class CRM_Fintrxn_EntityBatch {
     );
     $dao = CRM_Core_DAO::executeQuery($query, $queryParams);
     while ($dao->fetch()) {
-      try {
-        $created = civicrm_api3('EntityBatch', 'create', array(
-          'batch_id' => $this->_batchId,
-          'entity_table' => 'civicrm_financial_trxn',
-          'entity_id' => $dao->id,
-        ));
-        $result[] = 'Transactie ' . $dao->id . ' in batch ' . $this->_batchId . 'geplaatst';
+      if ($this->trxnInAnyBatch($dao->id) == FALSE) {
+        try {
+          civicrm_api3('EntityBatch', 'create', array(
+            'batch_id' => $this->_batchId,
+            'entity_table' => 'civicrm_financial_trxn',
+            'entity_id' => $dao->id,
+          ));
+          $result[] = 'Transactie ' . $dao->id . ' in batch ' . $this->_batchId . ' geplaatst';
+        }
+        catch (CiviCRM_API3_Exception $ex) {
+          $result[] = 'FOUT!!!! Transactie niet meegenomen!';
+        }
       }
-      catch (CiviCRM_API3_Exception $ex) {
-        $result[] = 'FOUT!!!! Transactie niet meegenomen!';
+      else {
+        $result[] = 'Transactie ' . $dao->id . ' zit al in een ander batch!';
       }
     }
     return $result;
+  }
+
+  /**
+   * Method to check if financial transaction is already in batch
+   * @param $finTrxnId
+   * @return bool
+   */
+  private function trxnInAnyBatch($finTrxnId) {
+    $query = "SELECT COUNT(*) FROM civicrm_entity_batch WHERE entity_table = %1 AND entity_id = %2";
+    $count = CRM_Core_DAO::singleValueQuery($query, array(
+      1 => array('civicrm_financial_trxn', 'String'),
+      2 => array($finTrxnId, 'Integer'),
+    ));
+    if ($count == 0) {
+      return FALSE;
+    }
+    else {
+      return TRUE;
+    }
   }
 }
