@@ -2,14 +2,14 @@
 use CRM_Fintrxn_ExtensionUtil as E;
 
 /**
- * EntityBatch.History API specification (optional)
+ * EntityBatch.Load API specification (optional)
  * This is used for documentation and validation.
  *
  * @param array $spec description of fields supported by this API call
  * @return void
  * @see http://wiki.civicrm.org/confluence/display/CRMDOC/API+Architecture+Standards
  */
-function _civicrm_api3_entity_batch_History_spec(&$spec) {
+function _civicrm_api3_entity_batch_Load_spec(&$spec) {
   $spec['year'] = array(
     'name' => 'year',
     'title' => 'Jaar',
@@ -27,7 +27,7 @@ function _civicrm_api3_entity_batch_History_spec(&$spec) {
 }
 
 /**
- * EntityBatch.History API
+ * EntityBatch.Load API
  *
  * @param array $params
  * @return array API result descriptor
@@ -35,8 +35,8 @@ function _civicrm_api3_entity_batch_History_spec(&$spec) {
  * @see civicrm_api3_create_error
  * @throws API_Exception
  */
-function civicrm_api3_entity_batch_History($params) {
+function civicrm_api3_entity_batch_Load($params) {
   $entityBatch = new CRM_Fintrxn_EntityBatch($params);
   $returnValues = $entityBatch->addMonth();
-  return civicrm_api3_create_success($returnValues, $params, 'EntityBatch', 'History');
+  return civicrm_api3_create_success($returnValues, $params, 'EntityBatch', 'Load');
 }
