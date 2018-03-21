@@ -10,12 +10,19 @@ use CRM_Fintrxn_ExtensionUtil as E;
  * @see http://wiki.civicrm.org/confluence/display/CRMDOC/API+Architecture+Standards
  */
 function _civicrm_api3_entity_batch_History_spec(&$spec) {
-  $spec['quarter'] = array(
-    'name' => 'quarter',
-    'title' => 'quarter',
-    'description' => ts("Which quarter to select and add to the batch"),
+  $spec['year'] = array(
+    'name' => 'year',
+    'title' => 'Jaar',
+    'description' => ts("Which year to select and add to the batch"),
     'api.required' => 1,
-    'type' => CRM_Utils_Type::T_STRING,
+    'type' => CRM_Utils_Type::T_INT,
+  );
+  $spec['month'] = array(
+    'name' => 'month',
+    'title' => 'month',
+    'description' => ts("Which month (numbers only, so for example april = 4) to select and add to the batch"),
+    'api.required' => 1,
+    'type' => CRM_Utils_Type::T_INT,
   );
 }
 
@@ -30,6 +37,6 @@ function _civicrm_api3_entity_batch_History_spec(&$spec) {
  */
 function civicrm_api3_entity_batch_History($params) {
   $entityBatch = new CRM_Fintrxn_EntityBatch($params);
-  $returnValues = $entityBatch->addHistoricQuarter();
+  $returnValues = $entityBatch->addMonth();
   return civicrm_api3_create_success($returnValues, $params, 'EntityBatch', 'History');
 }

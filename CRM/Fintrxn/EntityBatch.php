@@ -8,7 +8,8 @@
  */
 class CRM_Fintrxn_EntityBatch {
 
-  private $_quarter = NULL;
+  private $_year = NULL;
+  private $_month = NULL;
   private $_batchId = NULL;
   private $_startDate = NULL;
   private $_endDate = NULL;
@@ -19,36 +20,28 @@ class CRM_Fintrxn_EntityBatch {
    * @param array $params
    */
   public function __construct($params) {
-    $this->_quarter = strtoupper($params['quarter']);
-    $validQuarters = array('Q1', 'Q2', 'Q3', 'Q4');
-    if (!in_array($this->_quarter, $validQuarters)) {
-      CRM_Core_Error::createError('Invalid quarter passed to ' . __METHOD__ . ', valid is Q1, Q2, Q3 or Q4');
+    if (!is_numeric($params['year']) || empty($params['year'])) {
+      CRM_Core_Error::createError(ts('Year has to contain 4 digits (like 2018) in ' . __METHOD__ . ', it is getting the value : ' . $params['year']));
     }
-    switch ($this->_quarter) {
-      case 'Q3':
-        $this->_startDate = new DateTime('2017-07-01');
-        $this->_endDate = new DateTime('2017-09-30');
-        break;
-      case 'Q4':
-        $this->_startDate = new DateTime('2017-10-01');
-        $this->_endDate = new DateTime('2017-12-31');
-        break;
-      case 'Q1':
-        $this->_startDate = new DateTime('2018-01-01');
-        $this->_endDate = new DateTime('2018-03-31');
-        break;
-      case 'Q2':
-        $this->_startDate = new DateTime('2018-04-01');
-        $this->_endDate = new DateTime('2018-06-30');
-        break;
+    if (strlen($params['month']) != 4) {
+      CRM_Core_Error::createError(ts('Year has to contain 4 digits (like 2018) in ' . __METHOD__ . ', it is getting the value : ' . $params['year']));
     }
+    if (!is_numeric($params['month']) || empty($params['month'])) {
+      CRM_Core_Error::createError(ts('Month has to contain 2 digits (like 11) in ' . __METHOD__ . ', it is getting the value : ' . $params['month']));
+    }
+    if (strlen($params['month']) > 2) {
+      CRM_Core_Error::createError(ts('Month has to contain 2 digits (like 11) in ' . __METHOD__ . ', it is getting the value : ' . $params['month']));
+    }
+    $this->_year = $params['year'];
+    $this->_month = $params['month'];
+    $this->_startDate = new DateTime($this->_year . '-' . $this->_month . '-01');
+    $this->_endDate = new DateTime($this->_year . '-' . $this->_month . '-31');
     // now create new batch
     try {
       $created = civicrm_api3('Batch', 'create', array(
-        'title' => "Hist Batch " . $this->_quarter . " ". date('Ymdhis'),
+        'title' => "Hist Batch " . $this->_year . "-" . $this->_month . " ". date('Ymdhis'),
         'status_id' => "Open",
-        'description' => "Batch voor historische financiële transacties in " . $this->_quarter . ' tussen ' .
-          $this->_startDate->format('d-m-Y') . ' en ' . $this->_endDate->format('d-m-Y'),
+        'description' => "Batch voor hist. fin. transacties tussen " . $this->_startDate->format('d-m-Y') . " en " . $this->_endDate->format('d-m-Y'),
         'created_id' => 1,
         'created_date' => date('Y-m-d h:i:s'),
         'mode_id' => 2,
@@ -61,9 +54,9 @@ class CRM_Fintrxn_EntityBatch {
   }
 
   /**
-   * Method to add financial transactions from quarter to entity batch
+   * Method to add financial transactions from month to entity batch
    */
-  public function addHistoricQuarter() {
+  public function addMonth() {
     $result = array();
     $query = "SELECT * FROM civicrm_financial_trxn WHERE check_number = %1 AND (trxn_date BETWEEN %2 AND %3)";
     $queryParams = array(
