@@ -75,43 +75,6 @@ class CRM_Fintrxn_Batch {
     }
     return NULL;
   }
-  /**
-   * Static method to process validateForm hook
-   *
-   * @param $fields
-   * @param $errors
-   * @throws Exception when unable to find batchId in entryURL or when entryURL absent from $fields
-   */
-  public static function validateForm($fields, &$errors) {
-    if (isset($fields['entryURL'])) {
-      $entryParts = explode('id=', $fields['entryURL']);
-      if (isset($entryParts[1])) {
-        $idParts = explode('&amp', $entryParts[1]);
-        if (is_numeric($idParts[0])) {
-          $batchId = (int) $idParts[0];
-        }
-      }
-      if (isset($batchId) && !empty($batchId)) {
-        // retrieve all financial transactions in batch and validate them
-        $batch = new CRM_Fintrxn_Batch($batchId);
-        $errorType = $batch->validateBatch();
-        switch ($errorType) {
-          case 'nofintrxn':
-            $errors['export_format'] = 'There are no financial transactions in the batch, can not be exported.';
-            break;
-          case 'notvalid':
-            $errors['export_format'] = 'You can not export the batch because there are still invalid transactions. 
-            To find out what the problems are, cancel the export and validate the batch from the list of batches';
-            break;
-        }
-        return;
-      } else {
-        throw new Exception('Could not find a batch id in the entry url in '.__METHOD__.', contact your system administrator!');
-      }
-    } else {
-      throw new Exception('Fields parameter does not contain an element named entryURL in '.__METHOD__.'contact your system administrator!');
-    }
-  }
 
   /**
    * Static method to process hook_civicrm_links
@@ -129,14 +92,14 @@ class CRM_Fintrxn_Batch {
           unset($links[$linkKey]);
         }
       }
-      // add assign latest open and remove all
-      $links[] = array(
-        'name' => ts('Validate'),
-        'url' => 'civicrm/fintrxn/page/batchvalidate',
-        'title' => 'Validate Batch',
-        'qs' => 'reset=1&bid=%%bid%%',
-        'bit' => 'validate',
-      );
+      // add validate, assign latest open and remove all
+      //$links[] = array(
+        //'name' => ts('Validate'),
+        //'url' => 'civicrm/fintrxn/page/batchvalidate',
+        //'title' => 'Validate Batch',
+        //'qs' => 'reset=1&bid=%%bid%%',
+        //'bit' => 'validate',
+      //);
       $links[] = array(
         'name' => ts('Assign Latest Open'),
         'url' => 'civicrm/fintrxn/batch/assignopen',

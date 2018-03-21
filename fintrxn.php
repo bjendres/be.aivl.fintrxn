@@ -55,9 +55,6 @@ function fintrxn_civicrm_links($op, $objectName, $objectId, &$links, &$mask, &$v
  */
 function fintrxn_civicrm_validateForm($formName, &$fields, &$files, &$form, &$errors) {
   switch ($formName) {
-    case "CRM_Financial_Form_Export":
-      CRM_Fintrxn_Batch::validateForm($fields, $errors);
-      break;
     case "CRM_Campaign_Form_Campaign":
       CRM_Fintrxn_Campaign::validateForm($fields, $errors, $form);
       break;
