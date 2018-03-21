@@ -39,9 +39,9 @@ class CRM_Fintrxn_EntityBatch {
     // now create new batch
     try {
       $created = civicrm_api3('Batch', 'create', array(
-        'title' => "Hist Batch " . $this->_year . "-" . $this->_month . " ". date('Ymdhis'),
+        'title' => "AIVL Batch " . $this->_year . "-" . $this->_month . " ". date('Ymdhis'),
         'status_id' => "Open",
-        'description' => "Batch voor hist. fin. transacties tussen " . $this->_startDate->format('d-m-Y') . " en " . $this->_endDate->format('d-m-Y'),
+        'description' => "Batch voor AIVL fin. transacties tussen " . $this->_startDate->format('d-m-Y') . " en " . $this->_endDate->format('d-m-Y'),
         'created_id' => 1,
         'created_date' => date('Y-m-d h:i:s'),
         'mode_id' => 2,
