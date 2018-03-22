@@ -84,15 +84,14 @@ class CRM_Fintrxn_Batch {
    * @param $values
    */
   public static function links($objectId, &$links, &$values) {
-    // only for open batches
+// only for open batches
     if ($values['status'] == 1) {
-       remove export and close
+      // remove export and close
       foreach ($links as $linkKey => $linkValues) {
         if ($linkValues['name'] == 'Export' || $linkValues['name'] == 'Close') {
           unset($links[$linkKey]);
         }
       }
-      // add remove all
       $links[] = array(
         'name' => ts('Remove All Transactions'),
         'url' => 'civicrm/fintrxn/batch/removeall',

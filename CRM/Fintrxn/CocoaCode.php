@@ -327,7 +327,7 @@ class CRM_Fintrxn_CocoaCode {
     else {
       return array(
         'is_error' => 1,
-        'error_message' => ts('New Cocoa Codes already there for campaign  ' . $data->campaign_id),
+        'error_message' => ts('New Cocoa Codes already there for campaign  ' . $data['campaign_id']),
       );
     }
   }
