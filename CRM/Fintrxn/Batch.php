@@ -86,27 +86,13 @@ class CRM_Fintrxn_Batch {
   public static function links($objectId, &$links, &$values) {
     // only for open batches
     if ($values['status'] == 1) {
-      // remove export and close
+       remove export and close
       foreach ($links as $linkKey => $linkValues) {
         if ($linkValues['name'] == 'Export' || $linkValues['name'] == 'Close') {
           unset($links[$linkKey]);
         }
       }
-      // add validate, assign latest open and remove all
-      //$links[] = array(
-        //'name' => ts('Validate'),
-        //'url' => 'civicrm/fintrxn/page/batchvalidate',
-        //'title' => 'Validate Batch',
-        //'qs' => 'reset=1&bid=%%bid%%',
-        //'bit' => 'validate',
-      //);
-      $links[] = array(
-        'name' => ts('Assign Latest Open'),
-        'url' => 'civicrm/fintrxn/batch/assignopen',
-        'title' => 'Assign Latest Open Transactions',
-        'qs' => 'bid=%%bid%%',
-        'bit' => 'assign open',
-      );
+      // add remove all
       $links[] = array(
         'name' => ts('Remove All Transactions'),
         'url' => 'civicrm/fintrxn/batch/removeall',
