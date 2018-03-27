@@ -345,16 +345,34 @@ class CRM_Fintrxn_CocoaCode {
       $config->getCocoaProfitLossCustomField('column_name'),
       $config->getCocoaCodeAcquisitionCustomField('column_name'),
     );
-    $queryParams = array(
-      1 => array($data['campaign_id'], 'Integer'),
-      2 => array($data['cocoa_year'], 'String'),
-      3 => array($data['cocoa_cc_later'], 'String'),
-      4 => array($data['cocoa_pl'], 'String'),
-      5 => array($data['cocoa_cc_year'], 'String'),
+    $continue = TRUE;
+    if (empty($data['campaign_id'])) {
+      $continue = FALSE;
+    }
+    $emptyChecks = array(
+      'cocoa_year',
+      'cocoa_cc_later',
+      'cocoa_pl',
+      'cocoa_cc_year',
     );
-    $query = 'INSERT INTO '. $config->getCocoaCustomGroup('table_name') . ' (entity_id, ' . implode(",", $queryFields)
-      . ') VALUES(%1, %2, %3, %4, %5)';
-    CRM_Core_DAO::executeQuery($query, $queryParams);
+    foreach ($emptyChecks as $emptyCheck) {
+      if (!isset($data[$emptyCheck]) || empty($data[$emptyCheck])) {
+        CRM_Core_Error::debug_log_message('COCOA Migratie: veld ' . $emptyCheck . ' is leeg voor campagne ' . $data['campaign_id']);
+        $continue = FALSE;
+      }
+    }
+    if ($continue) {
+      $queryParams = array(
+        1 => array($data['campaign_id'], 'Integer'),
+        2 => array($data['cocoa_year'], 'String'),
+        3 => array($data['cocoa_cc_later'], 'String'),
+        4 => array($data['cocoa_pl'], 'String'),
+        5 => array($data['cocoa_cc_year'], 'String'),
+      );
+      $query = 'INSERT INTO '. $config->getCocoaCustomGroup('table_name') . ' (entity_id, ' . implode(",", $queryFields)
+        . ') VALUES(%1, %2, %3, %4, %5)';
+      CRM_Core_DAO::executeQuery($query, $queryParams);
+    }
   }
 
   /**
