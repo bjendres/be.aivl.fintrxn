@@ -11,5 +11,7 @@
   "Contribution ID":"contribution_id",
   "Payment Instrument":"payment_instrument",
   "Currency":"currency",
-  "Batch ID":"batch_id"
+  "Batch ID":"batch_id",
+  "Receive Date":"receive_date",
+  "Cancel Date":"cancel_date"
 }

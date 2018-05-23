@@ -111,6 +111,7 @@ class CRM_Fintrxn_Batch {
    * @throws Exception
    */
   public static function batchItems ($results, &$items) {
+    CRM_Core_Error::debug('results', $results);
     // clean out items array
     $items = array();
     // get mapping from JSON file
@@ -128,11 +129,28 @@ class CRM_Fintrxn_Batch {
               $item[$itemKey] = $additionalInfo['campaign_id'];
             }
             break;
+
           case 'Financial Type':
             if ($additionalInfo['financial_type']) {
               $item[$itemKey] = $additionalInfo['financial_type'];
             }
             break;
+
+          case 'Receive Date':
+            if ($additionalInfo['receive_date']) {
+              $item[$itemKey] = $additionalInfo['receive_date'];
+            }
+            break;
+
+          case 'Cancel Date':
+            if ($additionalInfo['cancel_date']) {
+              $item[$itemKey] = $additionalInfo['cancel_date'];
+            }
+            else {
+              $item[$itemKey] = '';
+            }
+            break;
+
           default:
             if (isset($result[$itemValue])) {
               $item[$itemKey] = $result[$itemValue];

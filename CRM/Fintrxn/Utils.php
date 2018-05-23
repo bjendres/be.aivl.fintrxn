@@ -191,14 +191,28 @@ class CRM_Fintrxn_Utils {
       ));
       if ($contribution['contribution_campaign_id']) {
         $result['campaign_id'] = $contribution['contribution_campaign_id'];
-      } else {
+      }
+      else {
         if ($contribution['campaign_id']) {
           $result['campaign_id'] = $contribution['campaign_id'];
         }
       }
+      if ($contribution['receive_date']) {
+        $result['receive_date'] = $contribution['receive_date'];
+      }
+      else {
+        $result['receive_date'] = '';
+      }
+      if ($contribution['cancel_date']) {
+        $result['cancel_date'] = $contribution['cancel_date'];
+      }
+      else {
+        $result['cancel_date'] = '';
+      }
       if ($contribution['financial_type']) {
         $result['financial_type'] = $contribution['financial_type'];
-      } else {
+      }
+      else {
         if ($contribution['financial_type_id']) {
           $result['financial_type'] = civicrm_api3('FinancialType', 'getvalue', array(
             'id' => $contribution['financial_type_id'],
