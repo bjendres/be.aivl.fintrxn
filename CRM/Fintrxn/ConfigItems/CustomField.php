@@ -62,7 +62,7 @@ class CRM_Fintrxn_ConfigItems_CustomField {
     try {
       civicrm_api3('CustomField', 'create', $this->_apiParams);
     } catch (CiviCRM_API3_Exception $ex) {
-      throw new Exception(ts('Could not create or update custom field with name').' '.$this->_apiParams['name']
+      CRM_Core_Error::debug_log_message(ts('Could not create or update custom field with name').' '.$this->_apiParams['name']
         .' '.ts('in custom group'). ' '.$this->_apiParams['custom_group_id'].', '.ts('error from API CustomField Create').': '
         .$ex->getMessage());
     }
