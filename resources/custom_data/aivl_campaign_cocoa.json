@@ -73,7 +73,7 @@
       },
       "b_code_following": {
         "name": "b_code_following",
-        "label": "B-Code Acquisition Following Years",
+        "label": "B-Code Following Years",
         "data_type": "String",
         "html_type": "Select",
         "option_group":"aivl_campaign_b_codes",
