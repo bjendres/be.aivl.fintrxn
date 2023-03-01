@@ -14,9 +14,9 @@
     <url desc="Support">https://github.com/systopia/be.aivl.fintrxn/issues</url>
     <url desc="Licensing">http://www.gnu.org/licenses/agpl-3.0.html</url>
   </urls>
-  <releaseDate></releaseDate>
-  <version>2.7-dev</version>
-  <develStage>dev</develStage>
+  <releaseDate>2023-03-01</releaseDate>
+  <version>2.7.0</version>
+  <develStage>stable</develStage>
   <compatibility>
     <ver>5.37</ver>
   </compatibility>
