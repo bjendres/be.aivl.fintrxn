@@ -252,5 +252,73 @@
         "is_active":1
       }
     }
+  },
+  "aivl_campaign_b_codes": {
+    "name":"aivl_campaign_b_codes",
+    "title":"Campaign B-Codes",
+    "is_active":1,
+    "is_reserved":1,
+    "option_values":{
+      "Bestaande_regelmatige_schenkers":{
+        "name":"Bestaande_regelmatige_schenkers",
+        "value":"1",
+        "label":"Bestaande regelmatige schenkers",
+        "is_active":1
+      },
+      "Nieuwe_regelmatige_schenkers_DD":{
+        "name":"Nieuwe_regelmatige_schenkers_DD",
+        "value":"2",
+        "label":"Nieuwe regelmatige schenkers - direct dialogue",
+        "is_active":1
+      },
+      "Nieuwe Nieuwe_regelmatige_schenkers_TM":{
+        "name":"Nieuwe_regelmatige_schenkers_TM",
+        "value":"3",
+        "label":"Nieuwe regelmatige schenkers - telemarketing",
+        "is_active":1
+      },
+      "Losse_giften_DM_Base":{
+        "name":"Losse_giften_DM_Base",
+        "value":"4",
+        "label":"Losse giften - DM Base",
+        "is_active":1
+      },
+      "Losse_giften_DM_Boost":{
+        "name":"Losse_giften_DM_Boost",
+        "value":"5",
+        "label":"Losse giften - DM Boost",
+        "is_active":1
+      },
+      "Losse_giften_Online_Actie":{
+        "name":"Losse_giften_Online_Actie",
+        "value":"6",
+        "label":"Losse giften - online actieplatform",
+        "is_active":1
+      },
+      "Losse_giften_Online_Website":{
+        "name":"Losse_giften_Online_Website",
+        "value":"7",
+        "label":"Losse giften - online website",
+        "is_active":1
+      },
+      "Losse_giften_Online_Beweging":{
+        "name":"Losse_giften_Online_Beweging",
+        "value":"8",
+        "label":"Losse giften - beweging",
+        "is_active":1
+      },
+      "Losse_giften_Online_Andere":{
+        "name":"Losse_giften_Online_Andere",
+        "value":"9",
+        "label":"Losse giften - andere",
+        "is_active":1
+      },
+      "Grote_Schenkers":{
+        "name":"Grote_Schenkers",
+        "value":"10",
+        "label":"Grote schenkers",
+        "is_active":1
+      }
+    }
   }
 }

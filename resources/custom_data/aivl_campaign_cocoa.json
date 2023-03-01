@@ -1,7 +1,7 @@
 {
   "aivl_campaign_cocoa": {
     "name": "aivl_campaign_cocoa",
-    "title": "Amnesty COCOA voor Campaign",
+    "title": "Amnesty Financial Dimensions",
     "extends": "Campaign",
     "TODO": "I think extends_entity_column_value doesn't work here. It should be translated to the optionvalue.value rather than the text.",
     "extends_entity_column_value": "Fundraising campaign",
@@ -57,6 +57,30 @@
         "is_view": 0,
         "column_name": "code_following",
         "weight": -90,
+        "is_active": 1
+      },
+      "b_code_acquisition_year": {
+        "name": "b_code_acquisition_year",
+        "label": "B-Code Acquisition Year",
+        "data_type": "String",
+        "html_type": "Select",
+        "option_group":"aivl_campaign_b_codes",
+        "is_searchable": 1,
+        "is_view": 0,
+        "column_name": "b_code_acquisition",
+        "weight": -80,
+        "is_active": 1
+      },
+      "b_code_following": {
+        "name": "b_code_following",
+        "label": "B-Code Following Years",
+        "data_type": "String",
+        "html_type": "Select",
+        "option_group":"aivl_campaign_b_codes",
+        "is_searchable": 1,
+        "is_view": 0,
+        "column_name": "b_code_following",
+        "weight": -70,
         "is_active": 1
       }
     }
